@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f5f5f5" />
+  <meta name="description" content="HVS - Order &amp; Update - Maritime service request system" />
+  <title>HVS - Order &amp; Update</title>
+  <script>
+    // Any signed-in session is enough; otherwise go back to the login page.
+    try {
+      if (!(localStorage.getItem('hvs_clone_user') || sessionStorage.getItem('hvs_clone_user'))) location.replace('index.html');
+    } catch (e) { location.replace('index.html'); }
+  </script>
+  <link rel="stylesheet" href="assets/hvs/app.css" />
+</head>
+
+<body>
+  <div id="app"></div>
+  <div id="overlay-root"></div>
+  <script src="assets/hvs/data.js"></script>
+  <script src="assets/hvs/app.js"></script>
+</body>
+
+</html>

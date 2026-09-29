@@ -1,0 +1,5 @@
+# Local tooling and captures (screenshots, DOM dumps)
+.playwright-mcp/
+.remember/
+legacy/
+node_modules/
