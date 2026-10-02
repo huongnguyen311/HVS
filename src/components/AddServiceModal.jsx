@@ -6,7 +6,7 @@ import { svc, svcKind } from '../board/timeline';
 
 const { Text } = Typography;
 
-const END_PINNED = [42 * 60, 48 * 60]; // 25/08 18:00 → 26/08 00:00, the row end
+const END_PINNED = [42 * 60, 48 * 60]; // day 1 18:00 → day 2 00:00, the row end
 
 // Why a service cannot go on this ticket yet (a POB it needs has no time), or null.
 export function serviceBlock(s, r) {
@@ -20,7 +20,7 @@ export function serviceBlock(s, r) {
   return null;
 }
 
-// Window a service takes from the ticket, in minutes since 24/08 00:00; null when the ticket lacks the POB.
+// Window a service takes from the ticket, in minutes since day 0 00:00; null when the ticket lacks the POB.
 export function serviceWindow(s, r) {
   if (serviceBlock(s, r)) return null;
   const a = pobMin(r.pobIn);

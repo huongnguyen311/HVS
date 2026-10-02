@@ -1,32 +1,44 @@
 import D from '../data';
 
-// Two-day window of half-hour cells, 24/08 00:00 → 25/08 24:00.
+// Two-day window of half-hour cells. Day 0 is the day the board opens on (the demo's today is 02/10/2026,
+// so it opens on 01/10 – 02/10); every board time is counted from its midnight. The year is the demo's, 2026.
 export const SLOTS = 96;
-export const DAY0 = 24;
+export const BOARD_DAY0 = '2026-10-01';
 const DAY_CELLS = 48;
+const ORIGIN = Date.UTC(2026, 9, 1);
+const pad = (n) => String(n).padStart(2, '0');
 
-// '0900/24.08' (a signed time carries a trailing ✓) → half-hour cells since 24/08 00:00 (any day), or null.
-export function absSlot(t) {
-  const m = /^(\d\d)(\d\d)\/(\d\d)\.\d\d$/.exec((t || '').replace(/\s*✓$/, ''));
-  if (!m) return null;
-  return (Number(m[3]) - DAY0) * 48 + Number(m[1]) * 2 + (Number(m[2]) >= 30 ? 1 : 0);
+// Minutes since day 0 00:00 for a day of 2026 (month 1–12); UTC, so no daylight-saving hour slips in.
+export const minutesAt = (day, month, h = 0, min = 0) => (Date.UTC(2026, month - 1, day, h, min) - ORIGIN) / 60000;
+
+// '0900/01.10' (a signed time carries a trailing ✓) → minutes since day 0 00:00 (any day), or null.
+export function sheetMin(t) {
+  const m = /^(\d\d)(\d\d)\/(\d\d)\.(\d\d)$/.exec((t || '').replace(/\s*✓$/, ''));
+  return m ? minutesAt(Number(m[3]), Number(m[4]), Number(m[1]), Number(m[2])) : null;
 }
 
-// Same, but only inside the fixture's 24/08–25/08 window; null outside it.
+// Same, in half-hour cells.
+export function absSlot(t) {
+  const min = sheetMin(t);
+  return min == null ? null : Math.floor(min / 30);
+}
+
+// Same, but only inside the opening 2-day window; null outside it.
 export function slotOf(t) {
   const s = absSlot(t);
   return s != null && s >= 0 && s < SLOTS ? s : null;
 }
 
-// { time: 'HH:MM', day: 0|1 } ↔ 'hhmm/dd.08'
+// { time: 'HH:MM', day: 0|1 } ↔ 'hhmm/dd.mm'
 export function sheetTime(v) {
   if (!v || !/^\d\d:\d\d$/.test(v.time)) return '';
-  return v.time.replace(':', '') + '/' + (DAY0 + v.day) + '.08';
+  const d = new Date(ORIGIN + v.day * 864e5);
+  return v.time.replace(':', '') + '/' + pad(d.getUTCDate()) + '.' + pad(d.getUTCMonth() + 1);
 }
 
 export function parseSheet(t) {
-  const m = /^(\d\d)(\d\d)\/(\d\d)\.\d\d$/.exec(t || '');
-  return m ? { time: m[1] + ':' + m[2], day: Number(m[3]) - DAY0 } : { time: '', day: 0 };
+  const min = sheetMin(t);
+  return min == null ? { time: '', day: 0 } : { time: t.slice(0, 2) + ':' + t.slice(2, 4), day: Math.floor(min / 1440) };
 }
 
 // Colours that are not services: escort segments and AI suggestions. Services take theirs from the catalogue.

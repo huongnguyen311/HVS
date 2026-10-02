@@ -32,8 +32,8 @@ export default function BoardBar({ filterCount, chips, range, live = true, onDay
         </span>
         <span className="bgrow" style={{ flex: 1 }} />
         {onAI && (
-          <button type="button" className="bai" onClick={onAI}>
-            ✨ AI suggest
+          <button type="button" className="bai" onClick={onAI} aria-label="AI suggest">
+            ✨ AI<span className="bai-x"> suggest</span>
           </button>
         )}
         <button type="button" className={'bgear bfilter' + (filterCount ? ' on' : '')} onClick={onFilters} aria-label="Filters">
@@ -100,14 +100,46 @@ export default function BoardBar({ filterCount, chips, range, live = true, onDay
           </div>
         }
       >
-        {/* The bar shows the first few keys; "+N more" opens the full legend. */}
+        {/* Phone: the first few keys, "+N more" opens the full legend. Desktop (body.desk) shows every key
+            and mark on the one line (.bsw-x) and drops "+N more"; a click still opens the full key. */}
         <button type="button" className="blegend" aria-label="Legend">
-          {LEGEND.slice(0, BAR_KEYS).map((k) => (
-            <span key={k.label} className="bsw">
+          {LEGEND.map((k, i) => (
+            <span key={k.label} className={'bsw' + (i < BAR_KEYS ? '' : ' bsw-x')}>
               <i style={{ background: k.bg, borderColor: k.bd }} />
               {k.short}
             </span>
           ))}
+          <span className="bsw bsw-x bsw-sep" />
+          <span className="bsw bsw-x">
+            <span className="lg plain">
+              <u>H7</u>
+            </span>
+            Double-booked
+          </span>
+          <span className="bsw bsw-x">
+            <span className="pb-twin-tag">= #</span>
+            Dupe
+          </span>
+          <span className="bsw bsw-x">
+            <span className="lg signed">✓</span>
+            Signed
+          </span>
+          <span className="bsw bsw-x">
+            <b>⏸</b>
+            On hold
+          </span>
+          <span className="bsw bsw-x">
+            <b>cancel?</b>
+            Cancel req.
+          </span>
+          <span className="bsw bsw-x">
+            <b>#</b>
+            No POB
+          </span>
+          <span className="bsw bsw-x">
+            <b>blank</b>
+            POB TBD
+          </span>
           <span className="blegend-more">+{LEGEND.length - BAR_KEYS + MARKS} more</span>
         </button>
       </Popover>

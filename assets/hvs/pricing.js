@@ -123,13 +123,27 @@
 
   function monthOf(l) { return l.date.slice(3); }
 
+  // The demo's current month: the latest month that has ledger lines (mm/yyyy).
+  function currentMonth() {
+    var last = P.ledger.reduce(function (a, l) { return dkey(l.date) > dkey(a) ? l.date : a; }, '');
+    return last ? last.slice(3) : '';
+  }
+  // The month the ledger opens on: the one just closed (accountants check and invoice it at the start of the next),
+  // or the current month when the previous one has no lines.
+  function ledgerMonth() {
+    var now = currentMonth();
+    var m = Number(now.slice(0, 2)), y = Number(now.slice(3));
+    var prev = (m === 1 ? '12/' + (y - 1) : String(m - 1).padStart(2, '0') + '/' + y);
+    return P.ledger.some(function (l) { return monthOf(l) === prev; }) ? prev : now;
+  }
+
   // Moves of a customer in a month that count toward a discount tier (the demo's earlier moves included).
   // A move is one No.: the sub-tickets of a split ticket do not count as extra moves.
   function movesInMonth(customer, month) {
     var counted = P.discountScope.counted;
     var stts = {};
     P.ledger.forEach(function (l) { if (l.invoice === customer && monthOf(l) === month && counted.indexOf(l.service) >= 0) stts[l.stt] = true; });
-    return (D.monthCounts[customer] || 0) + Object.keys(stts).length;
+    return ((D.monthCounts[month] || {})[customer] || 0) + Object.keys(stts).length;
   }
 
   function tierFor(customer, month) {
@@ -168,7 +182,7 @@
     return out;
   }
 
-  var L = { month: '08/2026', customer: '', from: '', to: '', missing: false, sel: {} };
+  var L = { month: ledgerMonth(), lastMonth: ledgerMonth(), customers: [], from: '', to: '', missing: false, sel: {} };
 
   // Nothing ticked: a hint. Something ticked: the count, clear, and the way to export it.
   function selBar(n) {
@@ -178,12 +192,21 @@
   }
   var lineKey = function (l) { return l.stt + '.' + l.sub; };
 
+  // The lines of the period on screen: the month, or the date range that takes its place.
+  function inPeriod(l) {
+    if (L.month && monthOf(l) !== L.month) return false;
+    if (L.from && dkey(l.date) < L.from.replace(/-/g, '')) return false;
+    if (L.to && dkey(l.date) > L.to.replace(/-/g, '')) return false;
+    return true;
+  }
+
+  // A line belongs to a customer who ordered it or is invoiced for it.
+  var ofCustomer = function (l, c) { return l.invoice === c || l.customer === c; };
+
   function ledgerRows() {
     return P.ledger.filter(function (l) {
-      if (L.month && monthOf(l) !== L.month) return false;
-      if (L.customer && l.invoice !== L.customer && l.customer !== L.customer) return false;
-      if (L.from && dkey(l.date) < L.from.replace(/-/g, '')) return false;
-      if (L.to && dkey(l.date) > L.to.replace(/-/g, '')) return false;
+      if (!inPeriod(l)) return false;
+      if (L.customers.length && !L.customers.some(function (c) { return ofCustomer(l, c); })) return false;
       return api.matches([l.stt, l.vessel, l.port, custName(l.customer), custName(l.invoice), svc(l.service).name, l.note].join(' '));
     });
   }
@@ -231,9 +254,15 @@
     var nSel = Object.keys(L.sel).length;
     var dm = function (v) { return v ? v.slice(8, 10) + '/' + v.slice(5, 7) : '…'; };
     var tools = '<div class="lg-tools"><div class="dt-chips">' +
-      chip(L.month ? esc(L.month) + ' ▾' : 'All months ▾', !!L.month, 'l-month') +
-      chip(L.customer ? esc((cust(L.customer) || {}).short) + ' ✕' : 'Customer ▾', !!L.customer, 'l-customer') +
-      chip(L.from || L.to ? dm(L.from) + ' – ' + dm(L.to) + ' ✕' : 'Dates ▾', !!(L.from || L.to), 'l-dates') + '</div>' +
+      chip(L.month ? esc(L.month) + ' ▾' : 'Month ▾', !!L.month, 'l-month') +
+      // One customer: its short name; several: the first and how many more. The ✕ clears them all, the rest reopens the picker.
+      (L.customers.length ? '<button class="on" data-action="l-customer" title="' + esc(L.customers.map(custName).join(', ')) + '">' +
+        esc((cust(L.customers[0]) || {}).short) + (L.customers.length > 1 ? ' +' + (L.customers.length - 1) : '') +
+        '<span class="lg-chip-x" role="button" aria-label="Clear customers" data-action="l-customer-clear">✕</span></button>' :
+        chip('Customer ▾', false, 'l-customer')) +
+      (L.from || L.to ? '<button class="on" data-action="l-dates">' + dm(L.from) + ' – ' + dm(L.to) +
+        '<span class="lg-chip-x" role="button" aria-label="Clear dates" data-action="l-dates-clear">✕</span></button>' :
+        chip('Dates ▾', false, 'l-dates')) + '</div>' +
       // The warning is the way to the lines: tap it to show only those, tap again to show all.
       (L.missing ? '<button class="lg-flag on" data-action="l-missing">' + emoji('⚠️') + '<span>Showing ' + rows.length + ' line' + (rows.length === 1 ? '' : 's') + ' missing data</span><b>Show all</b></button>' :
         flagged ? '<button class="lg-flag" data-action="l-missing">' + emoji('⚠️') + '<span>' + flagged + ' line' + (flagged > 1 ? 's' : '') + ' missing data · fix before export</span><b>Show</b></button>' : '') +
@@ -286,9 +315,9 @@
       { key: 'status', label: 'O · Billing status', sort: 'text', cell: function (l) { return statusPill(l.status); } },
       { key: 'agent', label: 'P · Agent', sort: 'text', cell: function (l) { return api.dash((byId(P.agents, lineAgent(l)) || {}).name); } }
     ]);
-    return ledgerPage('ledger', 'Priced service lines. Only the invoice customer (J) is edited here.', api.dataTable({
+    return ledgerPage('ledger', '', api.dataTable({
       source: P.ledger, list: rows, noun: 'line', perPage: 20, placeholder: 'Search No., vessel, customer, note…', sort: ['stt', 1],
-      empty: 'No lines in this month', tools: tools, cols: cols,
+      empty: L.month ? 'No lines in this month' : 'No lines in this period', tools: tools, cols: cols,
       actions: work ? function (l, i) { return locked(l) ? '<span class="dt-muted"' + tip('Invoiced lines are locked') + '>🔒</span>' : api.btn('', 'data-action="l-more" data-arg="' + i + '"', '⋯'); } : null
     }));
   };
@@ -296,24 +325,46 @@
   // ---------- ledger actions ----------
 
   api.actions['l-month'] = function () {
-    var months = P.ledger.map(monthOf).filter(function (m, i, a) { return a.indexOf(m) === i; });
-    api.actionSheet('Month', null, [{ label: 'All months', run: function () { L.month = ''; api.render(); } }].concat(months.map(function (m) {
-      return { label: m, run: function () { L.month = m; api.render(); } };
-    })));
+    var ym = function (m) { return m.slice(3) + m.slice(0, 2); };
+    var months = P.ledger.map(monthOf).filter(function (m, i, a) { return a.indexOf(m) === i; }).sort(function (a, b) { return ym(b) < ym(a) ? -1 : 1; });
+    // The ledger is always read for one period: a month, or a date range (which takes the month's place).
+    var now = ledgerMonth();
+    api.actionSheet('Month', null, months.map(function (m) {
+      return { label: m + (m === L.month ? ' ✓' : ''), run: function () { L.month = m; L.from = L.to = ''; api.render(); } };
+    }), { reset: { label: 'Reset to ' + now, run: function () { L.month = now; L.from = L.to = ''; api.render(); } } });
   };
   api.actions['l-customer'] = function () {
-    if (L.customer) { L.customer = ''; return api.render(); }
-    api.picker({ title: 'Filter by customer', items: P.customers.map(custItem), value: '', onPick: function (v) { L.customer = v; api.render(); } });
+    // Customers with lines in the period come first, busiest first, each with its line count.
+    var count = function (c) { return P.ledger.filter(function (l) { return inPeriod(l) && ofCustomer(l, c.id); }).length; };
+    var items = P.customers.map(function (c) {
+      var n = count(c);
+      var it = custItem(c);
+      it.sub = (n ? n + ' line' + (n > 1 ? 's' : '') : 'No lines') + ' · ' + it.sub;
+      return { item: it, n: n };
+    }).sort(function (a, b) { return b.n - a.n || a.item.label.localeCompare(b.item.label); }).map(function (x) { return x.item; });
+    api.picker({
+      title: 'Filter by customer', multi: true, items: items, value: L.customers,
+      placeholder: 'Search name, short name, tax code',
+      onPick: function (v) { L.customers = v; api.render(); },
+      onReset: function () { L.customers = []; api.render(); }
+    });
   };
+  api.actions['l-customer-clear'] = function () {
+    L.customers = [];
+    api.render();
+  };
+  function clearDates() { L.from = L.to = ''; L.month = L.month || L.lastMonth; }
+  api.actions['l-dates-clear'] = function () { clearDates(); api.render(); };
   api.actions['l-dates'] = function () {
-    if (L.from || L.to) { L.from = L.to = ''; return api.render(); }
     api.editDialog({
       title: 'Date range', okLabel: 'Apply',
-      fields: [{ label: 'From', type: 'html', html: '<input class="text-input" type="date" name="from" />', half: true }, { label: 'To', type: 'html', html: '<input class="text-input" type="date" name="to" />', half: true }],
+      // Reset: no range, back to the month it replaced.
+      reset: { run: clearDates },
+      fields: [{ label: 'From', type: 'html', html: '<input class="text-input" type="date" name="from" value="' + esc(L.from) + '" />', half: true }, { label: 'To', type: 'html', html: '<input class="text-input" type="date" name="to" value="' + esc(L.to) + '" />', half: true }],
       onSave: function () {
         var f = document.querySelector('.ed-dialog');
         if (!f.elements.from.value && !f.elements.to.value) return { error: 'Choose at least one day.' };
-        L.from = f.elements.from.value; L.to = f.elements.to.value; L.month = '';
+        L.from = f.elements.from.value; L.to = f.elements.to.value; L.lastMonth = L.month || L.lastMonth; L.month = '';
       }
     });
   };
@@ -506,13 +557,13 @@
 
     var block = !lines.length ? '' : X.mode === 'selected' && lines.length > 500 ? 'At most 500 ticked lines per export. Use a date range for more.' : !nCols ? 'Choose at least one column.' : bad.length ? 'Fix the lines in step 3 first.' : '';
     var ready = lines.length && !block;
-    return ledgerPage('ledger/export', 'An .xlsx file with the ledger’s A–P columns, headed in Vietnamese like the customer’s own ledger. Amounts and dates are real numbers and dates.',
+    return ledgerPage('ledger/export', 'An .xlsx file with the ledger’s A–P columns. Amounts and dates are real numbers and dates.',
       '<section class="lx-step"><h3><i>1</i>Lines</h3><div class="cfg-seg lx-mode">' +
         chip('Ticked (' + Object.keys(L.sel).length + ')', X.mode === 'selected', 'lx-mode', 'selected') + chip('Date range', X.mode === 'range', 'lx-mode', 'range') + '</div>' + pick + '</section>' +
-      // Columns as a checklist in sheet order (A→P), with the (Vietnamese) Excel header each one gets.
+      // Columns as a checklist in sheet order (A→P), with the Excel header each one gets.
       '<section class="lx-step"><h3><i>2</i>Columns in the file<small>' + nCols + ' of ' + all + '</small><button data-action="lx-all">' + (nCols === all ? 'Clear all' : 'Select all') + '</button></h3><div class="lx-cols">' + D.ledgerColumns.map(function (c) {
         var on = X.cols.indexOf(c[1]) >= 0;
-        return '<button class="lx-col' + (on ? ' on' : '') + '" role="checkbox" aria-checked="' + on + '" data-action="lx-col" data-arg="' + c[1] + '"><span class="lx-box">' + (on ? I.check : '') + '</span><b>' + c[0] + '</b><span class="lx-name">' + esc(c[3]) + '</span></button>';
+        return '<button class="lx-col' + (on ? ' on' : '') + '" role="checkbox" aria-checked="' + on + '" data-action="lx-col" data-arg="' + c[1] + '"><span class="lx-box">' + (on ? I.check : '') + '</span><b>' + c[0] + '</b><span class="lx-name">' + esc(c[2]) + '</span></button>';
       }).join('') + '</div></section>' +
       '<section class="lx-step"><h3><i>3</i>Missing data</h3>' + check + '</section>' +
       '<div class="lx-foot">' + (block ? '<p>' + esc(block) + '</p>' : '') +
@@ -527,8 +578,12 @@
     api.render();
   };
   api.actions['lx-all'] = function () { X.cols = X.cols.length === D.ledgerColumns.length ? [] : D.ledgerColumns.map(function (c) { return c[1]; }); api.render(); };
-  // Clears every ledger filter so the line to fix is sure to show.
-  api.actions['lx-goto'] = function (el) { L.month = L.customer = L.from = L.to = ''; L.missing = false; api.state.search = String(el.dataset.arg); api.go('ledger'); };
+  // Opens the line's own month with the other filters cleared, so the line to fix is sure to show.
+  api.actions['lx-goto'] = function (el) {
+    var line = P.ledger.filter(function (l) { return String(l.stt) === String(el.dataset.arg); })[0];
+    L.month = line ? monthOf(line) : L.month || L.lastMonth;
+    L.customers = []; L.from = L.to = ''; L.missing = false; api.state.search = String(el.dataset.arg); api.go('ledger');
+  };
   document.addEventListener('change', function (e) { if (e.target.matches('[data-lx]')) { X[e.target.dataset.lx] = e.target.value; api.render(); } });
 
   api.actions['lx-run'] = function () {
@@ -869,7 +924,7 @@
   api.actions['pr-test'] = function () {
     api.editDialog({
       title: 'Test a lookup', text: 'Finds the price a ledger line would get, or says which step does not match.', okLabel: 'Look up',
-      values: { date: '24/08/2026', service: 'mano_in', port: 'GML', customer: 'c1', dwt: '42200', loa: '220.3' },
+      values: { date: '01/10/2026', service: 'mano_in', port: 'GML', customer: 'c1', dwt: '42200', loa: '220.3' },
       fields: [
         { name: 'customer', label: 'Invoice customer', type: 'one', options: P.customers.map(custItem) },
         { name: 'service', label: 'Service', type: 'select', options: D.services.map(function (s) { return { value: s.code, label: s.name }; }) },
@@ -996,7 +1051,7 @@
         { key: 'customer', label: 'Customer', sort: 'text', cell: function (t) { return t.customer ? esc(custName(t.customer)) : anyText; } },
         { key: 'fromCount', label: 'Moves in the month', sort: 'number', cell: function (t) { return t.toCount == null ? t.fromCount + ' or more' : t.fromCount + ' – ' + t.toCount; } },
         { key: 'percent', label: 'Discount', sort: 'number', cls: 'num', cell: function (t) { return '<b>' + t.percent + '%</b>'; } },
-        { key: 'now', label: 'This month', cls: 'num', cell: function (t) { return t.customer ? movesInMonth(t.customer, '08/2026') + ' moves' : api.dash(''); } }
+        { key: 'now', label: 'This month', cls: 'num', cell: function (t) { return t.customer ? movesInMonth(t.customer, currentMonth()) + ' moves' : api.dash(''); } }
       ],
       actions: function (t, i) { return api.btn('', 'data-action="di-edit" data-arg="' + i + '"', 'Edit') + api.btn('danger', 'data-action="di-del" data-arg="' + i + '"', 'Delete'); }
     });

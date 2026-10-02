@@ -8,7 +8,7 @@ window.HVS_DATA = {
 
   // Plan board sections and rows; injected by tools/build-data.js from board.json.
   board: /*BOARD*/[],
-  boardWindow: { start: '24/08/2026', end: '25/08/2026', days: ['Monday 24/08/2026', 'Tuesday 25/08/2026'] },
+  boardWindow: { start: '01/10/2026', end: '02/10/2026', days: ['Thursday 01/10/2026', 'Friday 02/10/2026'] },
   boardLocations: ['Cai Mep - Thi Vai', 'Vung Tau', 'Dong Nai', 'Sai Gon'],
   // Plan board ticket statuses (label + tag colours); read by board.js and src/board.
   boardStatus: {
@@ -51,10 +51,11 @@ window.HVS_DATA = {
     Minimum: ['vessel', 'status', 'actions']
   },
   // Admin-configured defaults per role (board_role_defaults). null = every column.
-  // Board column defaults, set by an admin (Board display or Admin › Board Defaults): a list of column keys,
+  // Board column defaults, set by an admin on Admin › Board Defaults only: a list of column keys,
   // 'All', or null = no default at this level. Applied: own choice on the device → per user → per role → global → every column.
-  roleDefaults: { ADMIN: 'All', MOD: 'All', CAPTAIN: null },
-  globalDefault: ['vessel', 'port', 'status', 'no', 'pobIn', 'pobOut', 'actions'],
+  // Every role starts as Same as default; the default is every column, so ADMIN and MOD see all of them (A3).
+  roleDefaults: { ADMIN: null, MOD: null, CAPTAIN: null },
+  globalDefault: 'All',
   userDefaults: { 'Captain Tung': ['vessel', 'status', 'pobIn', 'pobOut', 'actions'] },
 
   // Admin-configured service catalogue: the one list the ticket form, the board and Admin › Service Types
@@ -66,14 +67,14 @@ window.HVS_DATA = {
   //   width   per_boat (1 tugboat = 1 cell) · by_time (as long as its window, cut at midnight)
   //   escort  the assign window offers "include escort" · multi  may appear more than once on a ticket
   services: [
-    { code: 'mano_in', short: 'In', name: 'Mano (arrival)', vi: 'Mano vào', color: '#ffff00', text: '#4a4000', border: '#d4c500', render: 'block', anchor: 'in', at: 'in', mins: 90, grouping: 'one_block_all', width: 'per_boat', orderIn: 10, orderOut: null, stack: 30, escort: true, multi: false, fields: ['Shipping time (min)', 'Escort rule', 'Escort boats'], hint: 'Starts at POB in', desc: 'Tugboat work at POB in. The board’s default arrival job.' },
-    { code: 'mano_out', short: 'Out', name: 'Mano (departure)', vi: 'Mano ra', color: '#92d050', text: '#1f3d00', border: '#6ba336', render: 'block', anchor: 'out', at: 'out', mins: 90, grouping: 'one_block_all', width: 'per_boat', orderIn: null, orderOut: 10, stack: 30, escort: true, multi: false, fields: ['Escort rule', 'Escort boats'], hint: 'Starts at POB out', desc: 'Tugboat work at POB out. No shipping time, nobody boards on the way out.' },
-    { code: 'shifting', short: 'Shifting', name: 'Shifting', vi: 'Dịch chuyển', color: '#00ffff', text: '#00494a', border: '#00c4c6', render: 'block', anchor: 'none', at: 'after', mins: 90, grouping: 'one_block_all', width: 'per_boat', orderIn: null, orderOut: null, stack: 40, escort: false, multi: true, fields: [], hint: 'Right after Mano (arrival)', desc: 'Moving the vessel between berths. Placed right after Mano (arrival), as long as a mano; with no POB in, it ends at POB out.' },
-    { code: 'standby', short: 'Standby', name: 'Standby', vi: 'Trực', color: '#fde68a', text: '#5b4300', border: '#e0b84a', render: 'block', anchor: 'none', at: 'after', mins: 180, grouping: 'one_block_all', width: 'by_time', orderIn: null, orderOut: null, stack: 20, escort: false, multi: true, fields: [], hint: 'Right after Mano (arrival)', desc: 'Held ready right after Mano (arrival); with no POB in, it ends at POB out. Sits after mano, before mooring.' },
-    { code: 'special', short: 'Special', name: 'Special job', vi: 'Job đặc thù', color: '#f0abfc', text: '#701a75', border: '#c026d3', render: 'block', anchor: 'in_out', at: 'pob', mins: 90, grouping: 'one_block_all', width: 'per_boat', orderIn: null, orderOut: null, stack: 40, escort: false, multi: true, fields: [], hint: 'Starts at POB in, else POB out', desc: 'Anything outside the catalogue. Starts at POB in, or at POB out when there is no POB in.' },
-    { code: 'salvage', short: 'Salvage', name: 'Salvage', vi: 'Cứu hộ', color: '#fecaca', text: '#7f1d1d', border: '#f87171', render: 'background', anchor: 'both', at: 'span', grouping: 'one_block_all', width: 'by_time', orderIn: null, orderOut: null, stack: 2, escort: false, multi: false, fields: [], hint: 'Spans POB in → POB out', desc: 'Runs the whole POB in → POB out span, behind the row’s other work.' },
-    { code: 'standby_duty', short: 'Duty', name: 'Standby on duty', vi: 'Trực ca', color: '#e3d7f2', text: '#2c1450', border: '#8b63c9', render: 'background', anchor: 'both', at: 'span', grouping: 'one_block_all', width: 'by_time', orderIn: null, orderOut: null, stack: 1, escort: false, multi: false, fields: [], hint: 'Spans POB in → POB out', desc: 'Continuous duty across the POB window. The tug is occupied, not tasked.' },
-    { code: 'mooring', short: 'Mooring', name: 'Mooring', vi: 'Buộc cởi dây', color: '#cbd5e1', text: '#1e293b', border: '#94a3b8', render: 'end_pinned', anchor: 'none', at: 'end', grouping: 'one_block_all', width: 'per_boat', orderIn: null, orderOut: null, stack: 10, escort: false, multi: false, fields: [], hint: 'No POB time, pinned to the row end', desc: 'Takes no time from POB in or POB out. Renders at the end of the row.' }
+    { code: 'mano_in', short: 'In', name: 'Mano (arrival)', color: '#ffff00', text: '#4a4000', border: '#d4c500', render: 'block', anchor: 'in', at: 'in', mins: 90, grouping: 'one_block_all', width: 'per_boat', orderIn: 10, orderOut: null, stack: 30, escort: true, multi: false, fields: ['Shipping time (min)', 'Escort rule', 'Escort boats'], hint: 'Starts at POB in', desc: 'Tugboat work at POB in. The board’s default arrival job.' },
+    { code: 'mano_out', short: 'Out', name: 'Mano (departure)', color: '#92d050', text: '#1f3d00', border: '#6ba336', render: 'block', anchor: 'out', at: 'out', mins: 90, grouping: 'one_block_all', width: 'per_boat', orderIn: null, orderOut: 10, stack: 30, escort: true, multi: false, fields: ['Escort rule', 'Escort boats'], hint: 'Starts at POB out', desc: 'Tugboat work at POB out. No shipping time, nobody boards on the way out.' },
+    { code: 'shifting', short: 'Shifting', name: 'Shifting', color: '#00ffff', text: '#00494a', border: '#00c4c6', render: 'block', anchor: 'none', at: 'after', mins: 90, grouping: 'one_block_all', width: 'per_boat', orderIn: null, orderOut: null, stack: 40, escort: false, multi: true, fields: [], hint: 'Right after Mano (arrival)', desc: 'Moving the vessel between berths. Placed right after Mano (arrival), as long as a mano; with no POB in, it ends at POB out.' },
+    { code: 'standby', short: 'Standby', name: 'Standby', color: '#fde68a', text: '#5b4300', border: '#e0b84a', render: 'block', anchor: 'none', at: 'after', mins: 180, grouping: 'one_block_all', width: 'by_time', orderIn: null, orderOut: null, stack: 20, escort: false, multi: true, fields: [], hint: 'Right after Mano (arrival)', desc: 'Held ready right after Mano (arrival); with no POB in, it ends at POB out. Sits after mano, before mooring.' },
+    { code: 'special', short: 'Special', name: 'Special job', color: '#f0abfc', text: '#701a75', border: '#c026d3', render: 'block', anchor: 'in_out', at: 'pob', mins: 90, grouping: 'one_block_all', width: 'per_boat', orderIn: null, orderOut: null, stack: 40, escort: false, multi: true, fields: [], hint: 'Starts at POB in, else POB out', desc: 'Anything outside the catalogue. Starts at POB in, or at POB out when there is no POB in.' },
+    { code: 'salvage', short: 'Salvage', name: 'Salvage', color: '#fecaca', text: '#7f1d1d', border: '#f87171', render: 'background', anchor: 'both', at: 'span', grouping: 'one_block_all', width: 'by_time', orderIn: null, orderOut: null, stack: 2, escort: false, multi: false, fields: [], hint: 'Spans POB in → POB out', desc: 'Runs the whole POB in → POB out span, behind the row’s other work.' },
+    { code: 'standby_duty', short: 'Duty', name: 'Standby on duty', color: '#e3d7f2', text: '#2c1450', border: '#8b63c9', render: 'background', anchor: 'both', at: 'span', grouping: 'one_block_all', width: 'by_time', orderIn: null, orderOut: null, stack: 1, escort: false, multi: false, fields: [], hint: 'Spans POB in → POB out', desc: 'Continuous duty across the POB window. The tug is occupied, not tasked.' },
+    { code: 'mooring', short: 'Mooring', name: 'Mooring', color: '#cbd5e1', text: '#1e293b', border: '#94a3b8', render: 'end_pinned', anchor: 'none', at: 'end', grouping: 'one_block_all', width: 'per_boat', orderIn: null, orderOut: null, stack: 10, escort: false, multi: false, fields: [], hint: 'No POB time, pinned to the row end', desc: 'Takes no time from POB in or POB out. Renders at the end of the row.' }
   ],
   // Fixture jobs carry a drawing kind instead of a service code; this maps them onto the catalogue.
   kindService: { pobin: 'mano_in', pobout: 'mano_out', special: 'special', shift: 'standby_duty' },
@@ -148,7 +149,12 @@ window.HVS_DATA = {
   fxRates: [
     { date: '24/08/2026', from: 'USD', to: 'VND', rate: 25350 },
     { date: '25/08/2026', from: 'USD', to: 'VND', rate: 25380 },
-    { date: '26/08/2026', from: 'USD', to: 'VND', rate: 25410 }
+    { date: '26/08/2026', from: 'USD', to: 'VND', rate: 25410 },
+    { date: '01/09/2026', from: 'USD', to: 'VND', rate: 25420 },
+    { date: '15/09/2026', from: 'USD', to: 'VND', rate: 25445 },
+    { date: '30/09/2026', from: 'USD', to: 'VND', rate: 25460 },
+    { date: '01/10/2026', from: 'USD', to: 'VND', rate: 25470 },
+    { date: '02/10/2026', from: 'USD', to: 'VND', rate: 25480 }
   ],
   priceRows: [
     { id: 'p1', customer: '', area: 'Cai Mep - Thi Vai', port: '', service: 'mano_in', dwtMin: null, dwtMax: 80000, loaMin: null, loaMax: null, price: 18500000, currency: 'VND', from: '01/01/2026', to: '31/12/2026' },
@@ -175,16 +181,32 @@ window.HVS_DATA = {
     { stt: 107, sub: 1, date: '24/08/2026', trip: '1534', vessel: 'CMA CGM JULES VERNE', dwt: 186796, loa: 396, port: 'PVC-MS', service: 'mano_in', tugs: 3, customer: 'c1', invoice: 'c1', override: null, status: 'pending', note: '3 tugs working - 2 tugs esc' },
     { stt: 108, sub: 1, date: '24/08/2026', trip: '1556', vessel: 'DAT VENUS', dwt: 39996, loa: 182.9, port: 'CU LAO TAO', service: 'shifting', tugs: 2, customer: 'c7', invoice: 'c7', override: null, status: 'provisional', note: 'Invoice to: D. & S. CO., LTD' },
     { stt: 109, sub: 1, date: '25/08/2026', trip: '1535', vessel: 'GOLDEN HOPE', dwt: 74910, loa: 225, port: 'GML', service: 'mano_in', tugs: 2, customer: 'c1', invoice: 'c2', override: null, status: 'provisional', note: '' },
-    { stt: 110, sub: 1, date: '25/08/2026', trip: '1573', vessel: 'ONE IBIS', dwt: 139335, loa: 364.15, port: 'SSIT', service: 'standby_duty', tugs: 1, customer: 'c4', invoice: 'c4', override: null, status: 'provisional', note: 'On duty' }
+    { stt: 110, sub: 1, date: '25/08/2026', trip: '1573', vessel: 'ONE IBIS', dwt: 139335, loa: 364.15, port: 'SSIT', service: 'standby_duty', tugs: 1, customer: 'c4', invoice: 'c4', override: null, status: 'provisional', note: 'On duty' },
+    { stt: 111, sub: 1, date: '02/09/2026', trip: '1601', vessel: 'CMA CGM JULES VERNE', dwt: 186796, loa: 396, port: 'GML', service: 'mano_in', tugs: 3, customer: 'c1', invoice: 'c1', override: null, status: 'invoiced', note: '' },
+    { stt: 112, sub: 1, date: '03/09/2026', trip: '1604', vessel: 'MSC NEW YORK', dwt: 189190, loa: 399, port: 'SSIT', service: 'mano_out', tugs: 2, customer: 'c3', invoice: 'c3', override: null, status: 'invoiced', note: '' },
+    { stt: 113, sub: 1, date: '05/09/2026', trip: '1610', vessel: 'SHUN LONG', dwt: 32500, loa: 189.9, port: 'CU LAO TAO', service: 'shifting', tugs: 1, customer: 'c7', invoice: 'c7', override: null, status: 'invoiced', note: '' },
+    { stt: 114, sub: 1, date: '08/09/2026', trip: '1615', vessel: 'ONE IBIS', dwt: 139335, loa: 364.15, port: 'TCIT', service: 'mano_in', tugs: 2, customer: 'c4', invoice: 'c4', override: null, status: 'invoiced', note: '' },
+    { stt: 115, sub: 1, date: '11/09/2026', trip: '1622', vessel: 'LETO', dwt: 42200, loa: 220.3, port: 'GML', service: 'mano_out', tugs: 2, customer: 'c1', invoice: 'c1', override: null, status: 'invoiced', note: '' },
+    { stt: 116, sub: 1, date: '14/09/2026', trip: '1628', vessel: 'MSC TRIESTE', dwt: 182145, loa: 365.5, port: 'SSIT', service: 'mano_in', tugs: 2, customer: 'c3', invoice: 'c3', override: null, status: 'confirmed', note: '' },
+    { stt: 117, sub: 1, date: '18/09/2026', trip: '1633', vessel: 'GOLDEN HOPE', dwt: 74910, loa: 225, port: 'GML', service: 'mano_in', tugs: 1, customer: 'c1', invoice: 'c1', override: null, status: 'confirmed', note: '' },
+    { stt: 117, sub: 2, date: '18/09/2026', trip: '1633', vessel: 'GOLDEN HOPE', dwt: 74910, loa: 225, port: 'GML', service: 'mano_in', tugs: 1, customer: 'c1', invoice: 'c2', override: null, status: 'confirmed', note: 'Split 1 tug to CGM' },
+    { stt: 118, sub: 1, date: '21/09/2026', trip: '1640', vessel: 'CSCL LONG BEACH', dwt: 111787, loa: 336.67, port: 'TCIT', service: 'mano_in', tugs: 3, customer: 'c5', invoice: 'c5', override: null, status: 'confirmed', note: '' },
+    { stt: 119, sub: 1, date: '24/09/2026', trip: '1646', vessel: 'MAERSK BOSTON', dwt: 53634, loa: 293.85, port: 'GML', service: 'special', tugs: 2, customer: 'c4', invoice: 'c4', override: null, status: 'confirmed', note: 'Special job' },
+    { stt: 120, sub: 1, date: '26/09/2026', trip: '1651', vessel: 'ZHENG RONG', dwt: 81729, loa: 229, port: 'CMIT', service: 'mano_out', tugs: 2, customer: 'c6', invoice: 'c6', override: null, status: 'confirmed', note: '' },
+    { stt: 121, sub: 1, date: '28/09/2026', trip: '1655', vessel: 'PORT OSHIMA', dwt: 64624, loa: 199.99, port: 'CU LAO TAO', service: 'shifting', tugs: 1, customer: 'c7', invoice: 'c7', override: null, status: 'provisional', note: '' },
+    { stt: 122, sub: 1, date: '30/09/2026', trip: '1660', vessel: 'ORIENTAL BREEZE', dwt: 43673, loa: 189.94, port: 'SSIT', service: 'standby_duty', tugs: 1, customer: 'c4', invoice: 'c4', override: null, status: 'provisional', note: 'On duty' },
+    { stt: 123, sub: 1, date: '01/10/2026', trip: '1662', vessel: 'APOLLO DIGNITY', dwt: 13507, loa: 122.92, port: 'GML', service: 'mano_in', tugs: 2, customer: 'c1', invoice: 'c1', override: null, status: 'provisional', note: '' },
+    { stt: 124, sub: 1, date: '01/10/2026', trip: '1663', vessel: 'MSC NEW YORK', dwt: 189190, loa: 399, port: 'SSIT', service: 'mano_in', tugs: 2, customer: 'c3', invoice: null, override: null, status: 'pending', note: 'Waiting for the agent to name the invoice company' },
+    { stt: 125, sub: 1, date: '02/10/2026', trip: '1665', vessel: 'CMA CGM JULES VERNE', dwt: 186796, loa: 396, port: 'GML', service: 'mano_out', tugs: 3, customer: 'c1', invoice: 'c1', override: null, status: 'pending', note: '' },
+    { stt: 126, sub: 1, date: '02/10/2026', trip: '1667', vessel: 'ONE FREEDOM', dwt: 155928, loa: 366, port: 'TCIT', service: 'mano_in', tugs: 2, customer: 'c4', invoice: 'c4', override: null, status: 'pending', note: '' }
   ],
-  // A→P: [letter, key, label on the app (English), header in the Excel file (Vietnamese, as in the customer's own
-  // ledger, P4)]. P · Agent: who ordered on the customer's behalf (EXPORT.md's AGENT column).
+  // A→P: [letter, key, label (English, on the app and as the Excel header)]. P · Agent: who ordered on the customer's behalf (EXPORT.md's AGENT column).
   ledgerColumns: [
-    ['A', 'stt', 'No.', 'STT'], ['B', 'date', 'Date', 'Ngày'], ['C', 'vessel', 'Vessel', 'Tên tàu'], ['D', 'dwt', 'DWT', 'DWT'], ['E', 'loa', 'LOA', 'LOA'],
-    ['F', 'port', 'Port', 'Cảng'], ['G', 'service', 'Service', 'Dịch vụ'], ['H', 'tugs', 'Tugs', 'Số lai'], ['I', 'customer', 'Ordered by', 'Khách đặt'],
-    ['J', 'invoice', 'Invoice customer', 'Khách xuất HĐ'], ['K', 'price', 'Unit price', 'Đơn giá'], ['L', 'override', 'Override', 'Giá điều chỉnh'],
-    ['M', 'currency', 'Currency', 'Tiền tệ'], ['N', 'amount', 'Amount', 'Thành tiền'], ['O', 'status', 'Billing status', 'Trạng thái'],
-    ['P', 'agent', 'Agent', 'Đại lý']
+    ['A', 'stt', 'No.'], ['B', 'date', 'Date'], ['C', 'vessel', 'Vessel'], ['D', 'dwt', 'DWT'], ['E', 'loa', 'LOA'],
+    ['F', 'port', 'Port'], ['G', 'service', 'Service'], ['H', 'tugs', 'Tugs'], ['I', 'customer', 'Ordered by'],
+    ['J', 'invoice', 'Invoice customer'], ['K', 'price', 'Unit price'], ['L', 'override', 'Override'],
+    ['M', 'currency', 'Currency'], ['N', 'amount', 'Amount'], ['O', 'status', 'Billing status'],
+    ['P', 'agent', 'Agent']
   ],
   billingStatus: {
     pending: { label: 'Pending', color: '#ea580c' },
@@ -195,7 +217,11 @@ window.HVS_DATA = {
 
   // P4 · export files: made by hand, or by the daily cron (tickets DONE that day). Kept 24 months.
   ledgerFiles: [
-    { name: 'ledger_2026-08-24_daily.xlsx', kind: 'cron', rows: 9, by: 'Daily job', at: '24/08/2026 23:59' },
+    { name: 'ledger_2026-10-01_daily.xlsx', kind: 'cron', rows: 1, by: 'Daily job', at: '01/10/2026 23:59' },
+    { name: 'ledger_2026-09-30_daily.xlsx', kind: 'cron', rows: 1, by: 'Daily job', at: '30/09/2026 23:59' },
+    { name: 'ledger_2026-09.xlsx', kind: 'manual', rows: 13, by: 'Ms. Hanh', at: '30/09/2026 16:40' },
+    { name: 'ledger_CMA_2026-09.xlsx', kind: 'manual', rows: 3, by: 'Ms. Hanh', at: '25/09/2026 09:10' },
+    { name: 'ledger_2026-08-24_daily.xlsx', kind: 'cron', rows: 7, by: 'Daily job', at: '24/08/2026 23:59' },
     { name: 'ledger_2026-08-23_daily.xlsx', kind: 'cron', rows: 12, by: 'Daily job', at: '23/08/2026 23:59' },
     { name: 'ledger_CMA_2026-08.xlsx', kind: 'manual', rows: 31, by: 'Ms. Hanh', at: '22/08/2026 10:15' },
     { name: 'ledger_2026-08-22_daily.xlsx', kind: 'cron', rows: 7, by: 'Daily job', at: '22/08/2026 23:59' }
@@ -219,8 +245,12 @@ window.HVS_DATA = {
   ],
   // Services counted toward a tier, and among them the ones counted but never charged.
   discountScope: { counted: ['mano_in', 'mano_out', 'shifting', 'standby_duty'], countOnly: ['standby_duty'] },
-  // Moves already made this month before the ledger rows above (demo).
-  monthCounts: { c1: 21, c3: 12, c4: 18 },
+  // Moves in each month that the demo ledger rows above do not list (they are a sample), per customer.
+  monthCounts: {
+    '08/2026': { c1: 21, c3: 12, c4: 18 },
+    '09/2026': { c1: 24, c3: 9, c4: 15 },
+    '10/2026': { c1: 1 }
+  },
 
   shippingLines: ['CMA', 'MSC', 'ONE', 'MAERSK', 'HMM', 'COSCO', 'EVERGREEN'],
   holdReasons: ['Vessel delayed', 'Waiting for pilot', 'Weather', 'Berth not ready', 'Customer request'],
@@ -238,15 +268,18 @@ window.HVS_DATA = {
     hotline: { label: 'Hotline:\n+84983383838', zalo: 'HVS Hotline', whatsapp: 'HVS Hotline' },
     tugDuty: { label: 'Tug duty 24/7', zalo: 'Tug duty 24/7', whatsapp: 'Tug duty 24/7' },
     list: [
-      { name: 'Mr. Pham Van Quang', phone: true, zalo: true, whatsapp: true },
-      { name: 'Ms. Thuy Trang', phone: true, zalo: true, whatsapp: true },
-      { name: 'Ms. Ha Giang', phone: true, zalo: true, whatsapp: true },
-      { name: 'Mr Dan', phone: true, zalo: true, whatsapp: true },
-      { name: 'Mr Phi', phone: true, zalo: true, whatsapp: true },
-      { name: 'Tug Duty 24/7', phone: true, zalo: true, whatsapp: true }
+      { name: 'Mr. Pham Van Quang', tel: '+84903112233' },
+      { name: 'Ms. Thuy Trang', tel: '+84908445566' },
+      { name: 'Ms. Ha Giang', tel: '+84913778899' },
+      { name: 'Mr Dan', tel: '+84918223344' },
+      { name: 'Mr Phi', tel: '+84935667788' },
+      { name: 'Tug Duty 24/7', tel: '+84983383839' }
     ],
     visible: 3
   },
+
+  // Admin › System settings (A1). Hotline / tug duty numbers feed the Contact us tab.
+  settings: { company: 'HVS Group', hotline: '+84983383838', tugDuty: '+84983383839', timezone: 'GMT+7 (Ho Chi Minh)', currency: 'VND', exportTime: '00:30', retention: 24, push: true },
 
   notifications: {
     unread: 3316,
@@ -265,7 +298,8 @@ window.HVS_DATA = {
     { key: 'fleet', label: 'Fleet & ports' },
     { key: 'reports', label: 'Tickets & reports' },
     { key: 'board', label: 'Plan board' },
-    { key: 'pricing', label: 'Pricing & ledger' }
+    { key: 'pricing', label: 'Pricing & ledger' },
+    { key: 'system', label: 'System' }
   ],
 
   admin: [
@@ -279,7 +313,7 @@ window.HVS_DATA = {
     { route: 'admin/tugboats', group: 'fleet', icon: '⛵', title: 'Tugboat Management', sub: 'Manage tugboat fleet and specifications', color: '#0e7490', tile: '#cffafe' },
     { route: 'admin/export-tickets', group: 'reports', icon: '📊', title: 'Export Tickets', sub: 'Generate ticket reports by date range', color: '#0f766e', tile: '#ccfbf1' },
     { route: 'admin/contact-stats', group: 'reports', icon: '📈', title: 'Contact Statistics', sub: 'Hotline / Zalo / WhatsApp click tracking', color: '#e11d48', tile: '#ffe4e6' },
-    { route: 'admin/board-defaults', group: 'board', icon: '🗓️', title: 'Board Defaults', sub: 'Default plan board columns per role', color: '#4f46e5', tile: '#e0e7ff' },
+    { route: 'admin/board-defaults', group: 'board', icon: '🗓️', title: 'Board Defaults', sub: 'Plan board columns: default, per role, user exceptions', color: '#4f46e5', tile: '#e0e7ff' },
     { route: 'admin/customers', group: 'pricing', icon: '🏢', title: 'Customers', sub: 'Who is invoiced: tax code, VAT, agents, client accounts', color: '#0f766e', tile: '#ccfbf1' },
     { route: 'admin/agents', group: 'pricing', icon: '🤝', title: 'Agents', sub: 'Who orders, and for which customers', color: '#7c3aed', tile: '#ede9fe' },
     { route: 'admin/tax-codes', group: 'pricing', icon: '🧾', title: 'Tax Codes', sub: 'One per customer; may be shared', color: '#b45309', tile: '#fef3c7' },
@@ -288,6 +322,7 @@ window.HVS_DATA = {
     { route: 'admin/split-rules', group: 'pricing', icon: '✨', title: 'AI Split Rules', sub: 'When the AI proposes splitting an invoice line', color: '#9333ea', tile: '#f3e8ff' },
     { route: 'admin/discounts', group: 'pricing', icon: '🏷️', title: 'Discounts', sub: 'Tiers by moves per month, and what counts', color: '#be123c', tile: '#ffe4e6' },
     { route: 'ledger', group: 'pricing', icon: '📒', title: 'Ledger', sub: 'Priced lines, sub-tickets, export', color: '#334155', tile: '#e2e8f0' },
+    { route: 'admin/settings', group: 'system', icon: '⚙️', title: 'System Settings', sub: 'Company, contact numbers, time zone, exports', color: '#475569', tile: '#e2e8f0' },
     { route: 'admin/services', group: 'board', icon: '🧩', title: 'Service Types', sub: 'Services the board and ticket form render from', color: '#0369a1', tile: '#e0f2fe' }
   ],
 

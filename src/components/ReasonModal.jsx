@@ -4,12 +4,13 @@ import { Input, Modal, Select, Typography } from 'antd';
 const { Text } = Typography;
 
 // A board action that needs a written reason: hold, reject a cancellation, admin override.
-// chips = quick reasons that fill the box; options = a required choice (the override's target status).
-export default function ReasonModal({ title, head, text, label, placeholder, chips, options, optionLabel, okText, danger, onOk, onClose }) {
+// chips = quick reasons that fill the box; options = a required choice (the override's target status);
+// optional = the reason may stay empty (Mark not valid).
+export default function ReasonModal({ title, head, text, label, placeholder, chips, options, optionLabel, okText, danger, optional, onOk, onClose }) {
   const [reason, setReason] = useState('');
   const [pick, setPick] = useState(undefined);
   const [tried, setTried] = useState(false);
-  const ok = reason.trim() && (!options || pick);
+  const ok = (optional || reason.trim()) && (!options || pick);
 
   return (
     <Modal
@@ -36,7 +37,7 @@ export default function ReasonModal({ title, head, text, label, placeholder, chi
       )}
       <label className="pbm-label">
         {label}
-        <span className="req"> *</span>
+        {optional ? <span className="opt"> (optional)</span> : <span className="req"> *</span>}
       </label>
       {chips && (
         <div className="reason-chips">
@@ -47,7 +48,7 @@ export default function ReasonModal({ title, head, text, label, placeholder, chi
           ))}
         </div>
       )}
-      <Input.TextArea rows={2} value={reason} placeholder={placeholder} status={tried && !reason.trim() ? 'error' : undefined} onChange={(e) => setReason(e.target.value)} />
+      <Input.TextArea rows={2} value={reason} placeholder={placeholder} status={tried && !optional && !reason.trim() ? 'error' : undefined} onChange={(e) => setReason(e.target.value)} />
       {tried && !ok && (
         <Text type="danger" className="pbm-err">
           {options && !pick ? 'Choose an option and write a reason.' : 'A reason is required.'}

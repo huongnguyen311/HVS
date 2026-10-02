@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { App, Dropdown, Table } from 'antd';
 import { CopyOutlined, PlusOutlined, WarningOutlined } from '@ant-design/icons';
 import D from '../data';
@@ -99,8 +99,7 @@ export default function PlanBoardTable({ toast, notify }) {
   const [overlay, setOverlay] = useState(null); // { type, no, ...props }
   const [settings, setSettings] = useState(null); // null | 'columns' (Board display) | 'filters'
   const [newOpen, setNewOpen] = useState(false);
-  const [day, setDay] = useState(0); // first day of the 2-day window, 0 = 24/08/2026
-  const [, setDefaultsRev] = useState(0); // bumped when an admin changes the column defaults
+  const [day, setDay] = useState(0); // first day of the 2-day window, 0 = BOARD_DAY0 (01/10/2026)
   const [tags, setTags] = useState(loadTags); // P6: shipping-line tag per vessel
   const [sugs, setSugs] = useState(null); // AI suggestions waiting for accept / reject; null = AI not run
 
@@ -115,6 +114,31 @@ export default function PlanBoardTable({ toast, notify }) {
     if (!body || !cell) return;
     const left = cell.offsetLeft;
     if (left + cell.offsetWidth > body.clientWidth) body.scrollLeft = left;
+  }, []);
+
+  // The table body runs down to the bottom of the screen, measured rather than calc(100vh - …): on a phone
+  // 100vh is the height with the browser bars hidden, so the board came out taller than the screen and the
+  // whole page scrolled (toolbar gone, a blank band above the table). innerHeight follows the bars, and the
+  // observer catches a toolbar that wraps or gains filter chips.
+  const [bodyH, setBodyH] = useState(null);
+  useLayoutEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return undefined;
+    const fit = () => {
+      const body = wrap.querySelector('.ant-table-body');
+      if (!body) return;
+      const top = body.getBoundingClientRect().top + window.scrollY;
+      const gap = document.body.classList.contains('desk') ? 24 : 12;
+      setBodyH(Math.max(240, Math.floor(window.innerHeight - top - gap)));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    [wrap.previousElementSibling, wrap.querySelector('.ant-table-header')].forEach((el) => el && ro.observe(el));
+    window.addEventListener('resize', fit);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', fit);
+    };
   }, []);
 
   // D1: realtime connection state. Losing it shows Offline; coming back reloads the board from the store.
@@ -198,16 +222,7 @@ export default function PlanBoardTable({ toast, notify }) {
     if (key === 'unhold') release(row);
     if (key === 'confirm') open('actions', row);
     if (key === 'done') markDone(row);
-    if (key === 'invalid') {
-      modal.confirm({
-        title: 'Mark this ticket as not valid?',
-        content: 'The ticket is closed. Only an admin can reopen a closed ticket.',
-        okText: 'Not valid',
-        okButtonProps: { danger: true },
-        onOk: () => patchRow(row.no, { status: 'NOT_VALID', cancelReq: false, hold: null }, 'Ticket marked as not valid')
-      });
-    }
-    if (key === 'hold' || key === 'reject' || key === 'override') open('reason', row, { mode: key });
+    if (key === 'hold' || key === 'reject' || key === 'override' || key === 'invalid') open('reason', row, { mode: key });
   }
 
   function onReason(row, mode, reason, to) {
@@ -220,6 +235,7 @@ export default function PlanBoardTable({ toast, notify }) {
       patchRow(row.no, { cancelReq: false, cancelRejectNote: reason }, 'Cancellation rejected · client notified');
       push('↩️', 'Cancellation rejected ' + row.vessel, ['Note: ' + reason, 'The ticket keeps its status · client notified'], CLIENT_TOO, 'agency:' + row.agency);
     }
+    if (mode === 'invalid') patchRow(row.no, { status: 'NOT_VALID', cancelReq: false, hold: null, invalidReason: reason }, 'Ticket marked as not valid');
     if (mode === 'override') {
       const entry = { from: row.status, to, reason, by, at: Date.now() };
       patchRow(
@@ -606,7 +622,7 @@ export default function PlanBoardTable({ toast, notify }) {
             indentSize: 0
           }}
           pagination={false}
-          scroll={{ x: tableWidth, y: `calc(100vh - 85px - 75px - 24px - 45px - ${chips.length ? 34 : 0}px)` }}
+          scroll={{ x: tableWidth, y: bodyH || `calc(100vh - 85px - 75px - 24px - 45px - ${chips.length ? 34 : 0}px)` }}
         />
       </div>
 
@@ -667,10 +683,6 @@ export default function PlanBoardTable({ toast, notify }) {
           role={role}
           onClose={() => setSettings(null)}
           onApply={setCfg}
-          onDefaults={(n) => {
-            setDefaultsRev((v) => v + 1);
-            say(n > 1 ? `${n} column defaults saved` : 'Column default saved');
-          }}
         />
       )}
     </>
@@ -693,6 +705,18 @@ function reasonCopy(mode, row) {
       chips: D.holdReasons,
       placeholder: 'e.g. Vessel delayed, ETA 14:00 tomorrow',
       okText: 'Hold'
+    };
+  }
+  if (mode === 'invalid') {
+    return {
+      title: 'Mark as not valid',
+      head,
+      text: 'The ticket is closed. Only an admin can reopen a closed ticket.',
+      label: 'Reason',
+      placeholder: 'e.g. Duplicate of another ticket',
+      okText: 'Not valid',
+      danger: true,
+      optional: true
     };
   }
   if (mode === 'reject') {

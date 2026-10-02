@@ -41,7 +41,10 @@ const when = (r) => {
 const text = (a, b) => String(a || '').localeCompare(String(b || ''), 'vi', { numeric: true });
 const num = (v) => Number(String(v || '').replace(/,/g, '')) || 0;
 
-const NAMES = { agency: 'Agency/Owner', mod: 'MOD', port: 'Port', vessel: 'Vessel', service: 'Service', from: 'From', to: 'To' };
+// D4: Customer = the client company behind the ticket's agency nickname.
+const customerOf = (r) => (clientOf(r.agency) || {}).agency || r.agency || '';
+
+const NAMES = { customer: 'Customer', agency: 'Agency/Owner', mod: 'MOD', port: 'Port', vessel: 'Vessel', service: 'Service', from: 'From', to: 'To' };
 
 function chipsOf(f) {
   return Object.keys(NAMES)
@@ -53,6 +56,7 @@ function chipsOf(f) {
 }
 
 function passes(r, f, q) {
+  if (f.customer && customerOf(r) !== f.customer) return false;
   if (f.agency && r.agency !== f.agency) return false;
   if (f.mod && r.mod !== f.mod) return false;
   if (f.port && r.port !== f.port) return false;
@@ -66,7 +70,7 @@ function passes(r, f, q) {
 }
 
 // Same sheet as the board's Filters (funnel): edits a draft, nothing changes until Done.
-function HistoryFilterSheet({ filters, rows, onApply, onClose }) {
+function HistoryFilterSheet({ filters, rows, client, onApply, onClose }) {
   const [f, setF] = useState({ ...filters });
   const set = (patch) => setF((x) => ({ ...x, ...patch }));
   const uniq = (k) => [...new Set(rows.map((r) => r[k]).filter(Boolean))].sort(text).map((v) => ({ value: v, label: v }));
@@ -109,6 +113,7 @@ function HistoryFilterSheet({ filters, rows, onApply, onClose }) {
               {date('to')}
             </Flex>
             {bad && <div className="hist-err">The first day must be before the last.</div>}
+            {!client && pick('customer', [...new Set(rows.map(customerOf).filter(Boolean))].sort(text).map((v) => ({ value: v, label: v })))}
             {pick('agency', uniq('agency'))}
             {pick('mod', uniq('mod'))}
             {pick('port', uniq('port'))}
@@ -188,7 +193,7 @@ export default function HistoryTable() {
       render: (st, r) => {
         const s = STATUS[st] || STATUS.DONE;
         // The reason is not on the ticket window: tapping the pill shows it (the rest of the row opens the ticket).
-        const why = r.cancelReason || (r.overrides && r.overrides.length ? r.overrides[r.overrides.length - 1].reason : '');
+        const why = r.cancelReason || r.invalidReason || (r.overrides && r.overrides.length ? r.overrides[r.overrides.length - 1].reason : '');
         return (
           <Tip title={s.label} content={why}>
             <span className="spill" style={{ color: s.fg, background: s.bg, borderColor: s.bd }}>
@@ -305,7 +310,7 @@ export default function HistoryTable() {
           scroll={{ x: width }}
         />
       </div>
-      {sheet && <HistoryFilterSheet filters={f} rows={closed} onApply={reset(setF)} onClose={() => setSheet(false)} />}
+      {sheet && <HistoryFilterSheet filters={f} rows={closed} client={client} onApply={reset(setF)} onClose={() => setSheet(false)} />}
       {current && (
         <TicketActionsModal
           row={current}

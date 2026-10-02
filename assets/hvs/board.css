@@ -195,7 +195,7 @@
 /* ---------- board grid ---------- */
 
 .board-wrap {
-  height: calc(100vh - 85px - 109px);
+  height: calc(var(--app-h) - 85px - 109px);
   overflow: auto;
   background: #fff;
   overscroll-behavior: contain;
@@ -220,7 +220,7 @@
   position: sticky;
   left: 0;
   display: block;
-  width: 390px;
+  width: min(390px, 100vw);
   text-align: center;
   font-size: 11px;
   font-weight: 800;
@@ -364,7 +364,7 @@
   position: sticky;
   left: 0;
   display: block;
-  width: 390px;
+  width: min(390px, 100vw);
   font-size: 11.5px;
   line-height: 36px;
   text-align: center;
@@ -689,7 +689,7 @@
 /* ---------- sheets: config / action sheet / hold ---------- */
 
 .bsheet.tall {
-  max-height: calc(100vh - 40px);
+  max-height: calc(var(--app-h) - 40px);
   display: flex;
   flex-direction: column;
 }
@@ -999,6 +999,23 @@
   font-size: 15px;
   font-weight: 600;
   color: var(--text);
+}
+
+/* A filter sheet's Reset, above Cancel: outlined, so it reads as an action but not the main one. */
+.asheet-reset {
+  display: block;
+  width: 100%;
+  height: 42px;
+  margin-top: 14px;
+  border: 1px solid var(--blue);
+  border-radius: 21px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--blue);
+}
+
+.asheet-reset + .asheet-cancel {
+  margin-top: 8px;
 }
 
 .dlg-text {
@@ -1443,20 +1460,36 @@
   margin-top: 10px;
 }
 
+/* Off = dashed outline, on = filled with ✓, always shown = filled with a lock. */
 .bd-cols span {
-  padding: 6px 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 8px;
+  border: 1px dashed #cbd5e1;
   border-radius: 4px;
-  background: #f3f4f6;
-  color: #9ca3af;
+  background: transparent;
+  color: #94a3b8;
   font-size: 10.5px;
   font-weight: 700;
-  text-decoration: line-through;
 }
 
 .bd-cols span.on {
+  border: 1px solid #a5b4fc;
   background: #e0e7ff;
-  color: #3730a3;
-  text-decoration: none;
+  color: #1e3a8a;
+}
+
+.bd-cols span.req {
+  border-color: #c7d2fe;
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.bd-cols span svg {
+  width: 10px;
+  height: 10px;
+  flex: none;
 }
 
 .bd-acc {
@@ -1561,7 +1594,7 @@
 /* ---------- demo role picker (after sign-in) ---------- */
 
 .dialog.role-pick {
-  max-height: calc(100vh - 48px);
+  max-height: calc(var(--app-h) - 48px);
   overflow-y: auto;
 }
 
@@ -1728,11 +1761,49 @@
 }
 
 .bjob::before {
-  inset: -2px 0; /* 29px → 33px tall, still inside the 40px row */
+  inset: -3px 0; /* 29px → about 33px tall (measured inside the 1px border), still inside the 40px row */
 }
 
 .hdr-bell::before {
   inset: -3px; /* 26px → 32px */
+}
+
+/* The tug block clipped its own ::before (overflow:hidden); the codes span still clips its text with an ellipsis.
+   AI suggestions keep clipping: their ✓ / ✗ must not spill out of a narrow block. */
+.bjob:not(.sugg) {
+  overflow: visible;
+}
+
+.bjob span {
+  min-width: 0;
+}
+
+/* The filter-chip row scrolls sideways, which clips the × hit area to the 24px chip; 4px of room above and
+   below (taken back by the margin) lets it reach 32px without moving anything. */
+.bbar .bchips,
+.bchips {
+  padding: 4px 0;
+  margin: -4px 0;
+}
+
+/* Hold mark beside the status (tap for the reason) and the "= #1564" duplicate tag. */
+.hpill,
+.pb-twin-tag {
+  position: relative;
+}
+
+.hpill::before,
+.pb-twin-tag::before {
+  content: '';
+  position: absolute;
+}
+
+.hpill::before {
+  inset: -5px; /* 22px → 32px */
+}
+
+.pb-twin-tag::before {
+  inset: -8px -2px; /* 16px → 32px tall */
 }
 
 /* ---------- audit 02/10 · minimum text size ----------
@@ -1801,4 +1872,220 @@
   margin-top: 12px;
   font-size: 13px;
   color: #6b7280;
+}
+
+/* ---------- Admin › Board Defaults: one place, three levels, one Save ---------- */
+.bd-page {
+  padding-bottom: 96px;
+}
+
+.bd-hint {
+  margin: -4px 0 10px;
+  font-size: 12.5px;
+  line-height: 17px;
+  color: var(--muted);
+}
+
+.bd-sub {
+  margin: -6px 0 4px;
+}
+
+.bd-presets {
+  margin-top: 10px;
+}
+
+.bd-cols span.req {
+  cursor: default;
+}
+
+.bd-remove {
+  margin-top: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--red);
+}
+
+/* Unsaved edits: pinned to the bottom like .pager / .lx-foot (same background and top line), the note
+   above two equal pill buttons, and clear of the phone's home indicator. */
+.bd-page.dirty {
+  padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+}
+
+.bd-save {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 26;
+  padding: 10px 16px calc(30px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid #e5e5e5;
+  background: var(--bg);
+}
+
+.bd-save p {
+  margin-bottom: 8px;
+  font-size: 12.5px;
+  text-align: center;
+  color: #b45309;
+}
+
+.bd-save-btns {
+  display: flex;
+  gap: 9px;
+}
+
+.bd-save-btns .pill-btn {
+  flex: 1;
+}
+
+body.desk .bd-save {
+  left: var(--side-w);
+  padding-bottom: 14px;
+}
+
+body.desk .bd-save p {
+  text-align: right;
+}
+
+body.desk .bd-save-btns {
+  justify-content: flex-end;
+}
+
+body.desk .bd-save-btns .pill-btn {
+  flex: none;
+  min-width: 120px;
+}
+
+/* Admin › Edit user: where this person's board columns come from (edited on Board Defaults). */
+.bd-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 13.5px;
+}
+
+.bd-line button {
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--blue-2);
+}
+
+.bd-sec-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.bd-add-sm {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--blue-2);
+}
+
+.bd-add-sm svg {
+  width: 14px;
+  height: 14px;
+}
+
+.bd-add-sm::before {
+  content: '';
+  position: absolute;
+  inset: -8px -6px;
+}
+
+/* "Who sees what": a select-like button, then where the person's columns come from. */
+.bd-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 14px;
+  text-align: left;
+}
+
+.bd-pick span {
+  flex: 1;
+  color: var(--muted);
+}
+
+.bd-pick b {
+  font-weight: 600;
+}
+
+.bd-pick small {
+  flex: 1;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.bd-pick svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+}
+
+.bd-peek-src {
+  margin: 10px 0 0;
+}
+
+.bd-peek-src b {
+  color: var(--text);
+}
+
+/* The ✕ that clears the people picked: its own tap target at the picker's right end. */
+.bd-pick .bd-pick-x {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-right: -6px;
+  border-radius: 50%;
+}
+
+.bd-pick .bd-pick-x:hover {
+  background: #f3f4f6;
+}
+
+/* Several people: one block each, with a thin rule between them. */
+.bd-peek-one + .bd-peek-one {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.bd-peek-one h5 {
+  margin-top: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.bd-peek-one h5 small {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.bd-cols.ro span {
+  border-style: solid;
+  border-color: #e5e7eb;
+  background: #f3f4f6;
+  color: #374151;
 }

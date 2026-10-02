@@ -468,6 +468,102 @@
     .legal a:active {
       color: var(--link-active);
     }
+
+    /* Forgot password / Request access / Google: one small dialog over the card. */
+    .lg-mask {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: rgba(0, 0, 0, 0.45);
+    }
+
+    .lg-dlg {
+      width: 100%;
+      max-width: 360px;
+      padding: 20px;
+      border-radius: 12px;
+      background: #fff;
+      font-family: var(--font);
+      color: var(--text);
+    }
+
+    .lg-dlg h3 {
+      margin: 0 0 6px;
+      font-size: 17px;
+    }
+
+    .lg-dlg p {
+      margin: 0 0 14px;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .lg-dlg label {
+      display: block;
+      margin: 10px 0 4px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .lg-dlg input {
+      box-sizing: border-box;
+      width: 100%;
+      height: 40px;
+      padding: 0 11px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font: 16px var(--font);
+    }
+
+    .lg-dlg .lg-err {
+      margin: 8px 0 0;
+      color: #dc2626;
+      font-size: 13px;
+    }
+
+    .lg-acts {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    .lg-acts button,
+    .lg-acct {
+      min-height: 40px;
+      padding: 0 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      font: 500 14px var(--font);
+      cursor: pointer;
+    }
+
+    .lg-acts .go {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .lg-acct {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      width: 100%;
+      min-height: 52px;
+      margin-top: 8px;
+      text-align: left;
+    }
+
+    .lg-acct small {
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
   </style>
 </head>
 
@@ -585,10 +681,7 @@
       if (localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY)) location.replace('app.html#/tickets');
     } catch (e) { /* storage blocked: stay on login */ }
 
-    document.getElementById('login-form').addEventListener('submit', (e) => {
-      e.preventDefault();
-      const form = e.currentTarget;
-      const email = form.email.value.trim();
+    function signIn(email, remember) {
       const known = KNOWN[email.toLowerCase()] || {};
       const user = {
         email,
@@ -597,11 +690,101 @@
         company: known.company || 'N/A',
       };
       try {
-        (form.remember.checked ? localStorage : sessionStorage).setItem(USER_KEY, JSON.stringify(user));
+        (remember ? localStorage : sessionStorage).setItem(USER_KEY, JSON.stringify(user));
         // Demo: every sign-in picks its role again (app.js shows the role picker first).
         sessionStorage.removeItem('hvs_demo_role');
       } catch (err) { /* storage blocked */ }
       location.href = 'app.html#/tickets';
+    }
+
+    document.getElementById('login-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const form = e.currentTarget;
+      signIn(form.email.value.trim(), form.remember.checked);
+    });
+
+    // ---------- Forgot password · Request access · Google (demo) ----------
+    const esc = (v) => String(v).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    const okEmail = (v) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v);
+
+    function dialog(html, onSubmit) {
+      const mask = document.createElement('div');
+      mask.className = 'lg-mask';
+      mask.innerHTML = '<form class="lg-dlg" novalidate>' + html + '</form>';
+      document.body.appendChild(mask);
+      const form = mask.firstChild;
+      mask.addEventListener('click', (e) => {
+        if (e.target === mask || e.target.closest('[data-close]')) mask.remove();
+      });
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        onSubmit(form, () => mask.remove());
+      });
+      const first = form.querySelector('input');
+      if (first) first.focus();
+      return form;
+    }
+
+    function fail(form, msg) {
+      let p = form.querySelector('.lg-err');
+      if (!p) {
+        p = document.createElement('p');
+        p.className = 'lg-err';
+        form.querySelector('.lg-acts').before(p);
+      }
+      p.textContent = msg;
+    }
+
+    const notice = (title, text) =>
+      dialog('<h3>' + esc(title) + '</h3><p>' + esc(text) + '</p><div class="lg-acts"><button type="button" class="go" data-close>OK</button></div>', () => {});
+
+    document.querySelector('.btn-forgot').addEventListener('click', () => {
+      const typed = document.querySelector('#login-form [name=email]').value.trim();
+      dialog(
+        '<h3>Reset password</h3><p>We email you a link to set a new password.</p><label>Email</label><input name="email" type="email" value="' + esc(typed) + '" />' +
+          '<div class="lg-acts"><button type="button" data-close>Cancel</button><button class="go">Send link</button></div>',
+        (form, close) => {
+          const email = form.email.value.trim();
+          if (!okEmail(email)) return fail(form, 'Enter a valid email address.');
+          close();
+          notice('Check your email', 'If an account exists for ' + email + ', a reset link is on its way.');
+        }
+      );
+    });
+
+    // The request lands in Admin › User Requests (app.js moves hvs_requestsNew into the list on start).
+    document.querySelector('.btn-request').addEventListener('click', () => {
+      dialog(
+        '<h3>Request access</h3><p>An admin reviews your request and creates your client account.</p>' +
+          '<label>Full name *</label><input name="name" /><label>Email *</label><input name="email" type="email" />' +
+          '<label>Phone</label><input name="phone" inputmode="tel" /><label>Company *</label><input name="company" />' +
+          '<div class="lg-acts"><button type="button" data-close>Cancel</button><button class="go">Send request</button></div>',
+        (form, close) => {
+          const v = Object.fromEntries([...new FormData(form)].map(([k, x]) => [k, x.trim()]));
+          if (!v.name || !v.company) return fail(form, 'Name and company are required.');
+          if (!okEmail(v.email)) return fail(form, 'Enter a valid email address.');
+          try {
+            const list = JSON.parse(sessionStorage.getItem('hvs_requestsNew') || '[]');
+            const requested = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            list.unshift({ name: v.name, email: v.email, phone: v.phone || 'N/A', company: v.company, requested });
+            sessionStorage.setItem('hvs_requestsNew', JSON.stringify(list));
+          } catch (err) { /* storage blocked */ }
+          close();
+          notice('Request sent', 'Thanks, ' + v.name + '. You get an email once an admin approves it.');
+        }
+      );
+    });
+
+    // Demo Google sign-in: pick an account, then sign in as with email + password.
+    document.querySelector('.btn-google').addEventListener('click', () => {
+      const accounts = Object.keys(KNOWN)
+        .map((email) => '<button type="button" class="lg-acct" data-acct="' + esc(email) + '">' + esc(KNOWN[email].name) + '<small>' + esc(email) + '</small></button>')
+        .join('');
+      const form = dialog('<h3>Choose an account</h3><p>to continue to Order &amp; Update</p>' + accounts + '<div class="lg-acts"><button type="button" data-close>Cancel</button></div>', () => {});
+      form.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-acct]');
+        if (b) signIn(b.dataset.acct, true);
+      });
     });
   </script>
 </body>

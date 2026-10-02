@@ -1,8 +1,8 @@
 import D from '../data';
 import { normalizeBoard } from './model.jsx';
 
-// Board rows live in the app's sessionStorage. v9: bumped so the English sample data reaches open tabs.
-const BOARD_KEY = 'hvs_board_v9';
+// Board rows live in the app's sessionStorage. v10: bumped so the board moved to 01/10/2026 reaches open tabs.
+const BOARD_KEY = 'hvs_board_v10';
 // Per-device display config: { columns, filters }.
 const CFG_KEY = 'hvs.planBoard.display.v1';
 
@@ -34,16 +34,16 @@ export function presetKeys(name) {
   return keys ? keys.slice() : ALL_KEYS.slice();
 }
 
-// Admin-configured column defaults (set in Board display by an admin, or on Admin › Board Defaults; both save
-// hvs_boardDefaults = { global, roles: { ROLE: cols }, users: { name: cols } }). A value is a list of column keys,
-// 'All', or null / missing for "no default at this level". Applied: per user → per role → global → every column;
+// Admin-configured column defaults (set only on Admin › Board Defaults, which saves
+// hvs_boardDefaults2 = { global, roles: { ROLE: cols }, users: { name: cols } }). A value is a list of column keys,
+// 'All', or null / missing for "no default at this level". Applied: user exception → role → Plan board default → every column;
 // the device's own choice (loadConfig) sits on top. Defaults, not permissions: anyone can still change their view.
 export function loadDefaults() {
-  const d = read(sessionStorage, 'hvs_boardDefaults', null) || { global: D.globalDefault, roles: D.roleDefaults, users: D.userDefaults };
+  const d = read(sessionStorage, 'hvs_boardDefaults2', null) || { global: D.globalDefault, roles: D.roleDefaults, users: D.userDefaults };
   return { global: d.global == null ? null : d.global, roles: { ...(d.roles || {}) }, users: { ...(d.users || {}) } };
 }
 
-export const saveDefaults = (d) => write(sessionStorage, 'hvs_boardDefaults', d);
+export const saveDefaults = (d) => write(sessionStorage, 'hvs_boardDefaults2', d);
 
 // A stored default → its column keys (required ones always in), or null when the level has none.
 export function colsOf(v) {
@@ -57,9 +57,12 @@ export function roleDefault(role, name = loadUserName()) {
   return colsOf(d.users[name]) || colsOf(d.roles[role]) || colsOf(d.global) || ALL_KEYS.slice();
 }
 
-// People who use the board (ADMIN, MOD, CAPTAIN), for per-user defaults (Board display › Apply to).
-export function loadBoardUsers() {
-  return read(sessionStorage, 'hvs_users', D.users).filter((u) => /^(ADMIN|MOD|CAPTAIN)$/.test(u.role) && u.status === 'ACTIVE');
+// Where someone's default columns come from: their own exception, their role, or the Plan board default.
+export function defaultSource(role, name = loadUserName()) {
+  const d = loadDefaults();
+  if (colsOf(d.users[name])) return 'user';
+  if (colsOf(d.roles[role])) return 'role';
+  return 'global';
 }
 
 // Density and empty bands are fixed now (the Display section is gone); older saved values are ignored.

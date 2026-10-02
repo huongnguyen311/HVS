@@ -82,6 +82,15 @@
     var o = n.owner || '';
     return o.indexOf('by:') === 0 ? norm(o.slice(3)) === norm(D.demoClient) : o.indexOf('agency:') === 0 && o.slice(7) === D.demoClientAgency;
   }
+  // Where tapping a notification goes: its ticket ("Ticket #id", or the vessel in the title), else the
+  // plan board for a board ticket ('agency:' owner) when this role may open it.
+  function notifTarget(n) {
+    var text = (n.lines || []).join(' ');
+    var m = text.match(/Ticket #(\w+)/);
+    var tk = m ? ticketById(m[1]) : myTickets().filter(function (x) { return x.vessel && n.title.indexOf(x.vessel) >= 0; })[0];
+    if (tk && myTickets().indexOf(tk) >= 0) return 'tickets/' + tk.id;
+    return /^agency:/.test(n.owner || '') && allowed('board') ? 'board' : '';
+  }
   function seesNotif(n) { return (n.to || OPS).indexOf(user.role) >= 0 && (user.role !== 'CLIENT' || ownsNotif(n)); }
   // Every role counts only what is meant for it (no fixed server count).
   function unreadCount() {
@@ -139,12 +148,14 @@
     requests: store('requests', D.userRequests),
     locations: store('locations', D.locations),
     persons: store('persons', D.contactPersons),
+    settings: store('settings', D.settings),
     stickers: store('stickers', D.stickers),
     tugboats: store('tugboats', D.tugboats),
     files: store('files', D.exportFiles),
     notifs: store('notifs', D.notifications.items),
     comments: store('comments', {}),
     ticketFilter: 'All',
+    tf: {}, // Filters sheet: user, vessel, port, date (yyyy-mm-dd, created day), files
     ticketPage: 1,
     notifPage: 1,
     userTab: 'ACTIVE',
@@ -157,6 +168,15 @@
     cancelReqs: store('cancelReqs', {}),
     ticketServices: store('ticketServices', {})
   };
+
+  // Access requests sent from login.html (Request access) join the admin's User Requests list.
+  (function () {
+    var fresh = store('requestsNew', []);
+    if (!fresh.length) return;
+    state.requests = fresh.concat(state.requests);
+    save('requests', state.requests);
+    try { sessionStorage.removeItem('hvs_requestsNew'); } catch (e) { /* storage blocked */ }
+  })();
 
   // Service Types edited by the admin replace the catalogue in place, so the board bundle (which shares
   // this D object) renders from the edited rows too.
@@ -302,7 +322,8 @@
       '<label class="search sm pk-search">' + I.search + '<input type="search" data-pk-q placeholder="' + esc(opts.placeholder || 'Search') + '" /></label>' +
       '<div class="pk-list">' + (opts.none && !multi ? item({ value: '', label: opts.none }) : '') + opts.items.map(item).join('') +
       '<p class="pk-empty" hidden>Nothing matches</p></div>' +
-      (multi ? '<div class="bsheet-btns"><button class="clear" data-pk-clear>Clear</button><button class="done" data-pk-done>Done</button></div>' : '') + '</div>';
+      (multi ? '<div class="bsheet-btns">' + (opts.onReset ? '<button class="clear" data-pk-reset>Reset</button>' : '<button class="clear" data-pk-clear>Clear</button>') +
+        '<button class="done" data-pk-done>Done</button></div>' : '') + '</div>';
     var wrap = openOverlay(html, 'sheet', '#a8a8a8');
     var list = wrap.querySelector('.pk-list');
     var byValue = {};
@@ -334,6 +355,8 @@
         list.querySelectorAll('.pk-item').forEach(function (x) { x.classList.remove('on'); x.querySelector('.pk-mark').innerHTML = ''; });
       }
       if (e.target.closest('[data-pk-done]')) { closeOverlay(); opts.onPick(chosen); }
+      // Reset (a filter's picker): clears the filter and closes, no Done needed.
+      if (e.target.closest('[data-pk-reset]')) { closeOverlay(); opts.onReset(); }
     });
     return wrap;
   }
@@ -380,10 +403,12 @@
     var html = '<div class="mask light" data-action="close"></div><form class="dialog ed-dialog" data-dialog novalidate><h3>' + esc(o.title) + '</h3>' +
       (o.text ? '<p class="dlg-text">' + esc(o.text) + '</p>' : '') + '<div class="ed-grid">' + o.fields.map(field).join('') + '</div>' +
       '<div class="ed-msg" hidden></div>' +
-      '<div class="actions"><button type="button" class="pill-btn outline dark" data-action="close">Cancel</button><button type="submit" class="pill-btn primary">' + esc(o.okLabel || 'Save') + '</button></div></form>';
+      '<div class="actions">' + (o.reset ? '<button type="button" class="ed-reset" data-ed-reset>' + esc(o.reset.label || 'Reset') + '</button>' : '') +
+      '<button type="button" class="pill-btn outline dark" data-action="close">Cancel</button><button type="submit" class="pill-btn primary">' + esc(o.okLabel || 'Save') + '</button></div></form>';
     var wrap = openOverlay(html, 'dialog', '#a8a8a8');
     var form = wrap.querySelector('form');
     form.style.top = Math.max(24, (window.innerHeight - form.offsetHeight) / 2) + 'px';
+    if (o.reset) form.querySelector('[data-ed-reset]').addEventListener('click', function () { closeOverlay(); o.reset.run(); render(); });
     var force = false;
     form.addEventListener('input', function (e) {
       if (e.target.classList.contains('ed-q')) {
@@ -448,10 +473,11 @@
   }
 
   // Asks before something that cannot be undone (delete, mark not valid); onOk() runs on confirm.
-  function confirmDialog(title, text, okLabel, onOk) {
+  // safe: the OK button is blue (Approve, …) instead of red (Delete, Reject, …).
+  function confirmDialog(title, text, okLabel, onOk, safe) {
     var html = '<div class="mask light" data-action="close"></div><form class="dialog" data-dialog><h3>' + esc(title) + '</h3>' +
       (text ? '<p class="dlg-text">' + esc(text) + '</p>' : '') +
-      '<div class="actions"><button type="button" class="pill-btn outline dark" data-action="close">Cancel</button><button type="submit" class="pill-btn danger">' + esc(okLabel || 'Delete') + '</button></div></form>';
+      '<div class="actions"><button type="button" class="pill-btn outline dark" data-action="close">Cancel</button><button type="submit" class="pill-btn ' + (safe ? 'primary' : 'danger') + '">' + esc(okLabel || 'Delete') + '</button></div></form>';
     var wrap = openOverlay(html, 'dialog', '#a8a8a8');
     var form = wrap.querySelector('form');
     form.style.top = Math.max(60, (window.innerHeight - form.offsetHeight) / 2 - 30) + 'px';
@@ -634,10 +660,25 @@
     return state.cancelReqs['t:' + t.id] ? '<span class="hold-pill cancel-pill">' + emoji('✋') + 'Cancel requested</span>' : '';
   }
 
+  // The ticket list's Filters sheet (state.tf). Text filters match without accents; date = the created day.
+  function sheetPasses(t) {
+    var f = state.tf;
+    if (f.user && norm(t.by).indexOf(norm(f.user)) < 0) return false;
+    if (f.vessel && norm(t.vessel).indexOf(norm(f.vessel)) < 0) return false;
+    if (f.port && norm(t.port).indexOf(norm(f.port)) < 0) return false;
+    if (f.date) {
+      var m = String(t.created || '').match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+      if (!m || m[3] + '-' + m[2] + '-' + m[1] !== f.date) return false;
+    }
+    return !f.files || t.files > 0;
+  }
+  function tfCount() { return Object.keys(state.tf).filter(function (k) { return state.tf[k]; }).length; }
+
   views.tickets = function () {
     var filters = ['All', 'On hold', 'Pending', 'Confirmed', 'New Update', 'Done', 'Not Valid', 'Cancelled'];
     var mine = myTickets();
     var list = mine.filter(function (t) {
+      if (!sheetPasses(t)) return false;
       if (state.ticketFilter === 'On hold') return !!state.holds['t:' + t.id];
       return state.ticketFilter === 'All' || t.status === state.ticketFilter;
     });
@@ -681,7 +722,7 @@
     state.ticketPage = Math.min(state.ticketPage, Math.max(1, Math.ceil(total / 20)));
     var page = list.slice((state.ticketPage - 1) * 20, state.ticketPage * 20);
     return header({ logo: true }) +
-      '<div class="strip"><div class="strip-filters" data-action="filters">' + I.filter + 'Filters</div>' +
+      '<div class="strip"><div class="strip-filters' + (tfCount() ? ' on' : '') + '" data-action="filters">' + I.filter + 'Filters' + (tfCount() ? ' · ' + tfCount() : '') + '</div>' +
       '<div class="chips">' + filters.map(function (f) {
         return '<button class="chip' + (f === state.ticketFilter ? ' on' : '') + '" data-filter="' + f + '">' + f + '</button>';
       }).join('') + '</div></div>' +
@@ -698,7 +739,6 @@
     if (t.unberth) lines.push(['📅', 'ET Unberth: ' + t.unberth]);
     lines.push(['🕒', 'Created: ' + t.created]);
     lines.push(['👤', 'By: ' + t.by]);
-    if (t.assignedBy) lines.push(['🛡️', 'Assigned by: ' + t.assignedBy]);
     var meta = lines.map(function (l) { return '<div>' + emoji(l[0]) + esc(l[1]) + '</div>'; }).join('');
     if (t.files) meta += '<div class="gap">' + emoji('📎') + t.files + ' file' + (t.files > 1 ? 's' : '') + ' attached</div>';
     return '<div class="card ticket" data-go="tickets/' + t.id + '">' +
@@ -710,7 +750,7 @@
   }
 
   views.ticket = function (id) {
-    var t = id === 'new' ? null : state.tickets.filter(function (x) { return x.id === id; })[0];
+    var t = id === 'new' ? null : myTickets().filter(function (x) { return x.id === id; })[0];
     var tab = state.formTab;
     var tabs = '<div class="tabs">' +
       '<button class="tab' + (tab === 'towage' ? ' on' : '') + '" data-tab="towage">Towage</button>' +
@@ -723,7 +763,8 @@
   function towagePane(t) {
     t = t || {};
     var editing = !!t.id;
-    var customer = t.customer || (editing ? t.by : user.name);
+    var link = !editing && linkedCustomer();
+    var customer = t.customer || (editing ? t.by : link ? link.label : user.name);
     var files = t.attachments || [];
     // DONE / NOT_VALID / CANCELLED are locked for everyone; only an admin override on the plan board reopens one.
     var closed = /^(Done|Not Valid|Cancelled)$/.test(t.status || '');
@@ -747,14 +788,12 @@
       '<div class="fld fld-note"><div class="fld-row"><span class="fld-label" style="margin-top:2px">4. Note:</span>' +
       '<textarea name="note" placeholder="..............................">' + esc(t.note || '') + '</textarea></div></div>' +
       '<div class="fld fld-cust"><div class="fld-row"><span class="chev" data-action="cc">' + I.down + '</span>' +
-      '<span class="fld-label">5. Customer/Agent:</span><input class="fld-input" name="customer" value="' + esc(customer) + '" /></div>' + customerHint() + '</div>' +
+      '<span class="fld-label">5. Customer/Agent:</span><input class="fld-input" name="customer" value="' + esc(customer) + '" /></div>' + customerHint(link) + '</div>' +
+      (link ? '<input type="hidden" name="customerId" value="' + esc(link.customer.id) + '" /><input type="hidden" name="agentId" value="' + esc(link.agent ? link.agent.id : '') + '" />' : '') +
       '<div class="fld" style="padding-top:10px;padding-bottom:10px"><div class="fld-row"><span class="fld-label">6. Attachments:</span></div>' +
-      '<div class="attach">' + files.map(function (f) {
-        return '<div class="attach-file"><span class="attach-clip">' + I.clip + '</span><span class="attach-name"><b>' + esc(f.name) + '</b><span>' +
-          esc(f.size) + ' · By ' + esc(f.by) + '</span></span><span class="attach-more">' + I.more + '</span></div>';
-      }).join('') + (files.length ? '<div class="attach-line"></div>' : '') +
+      '<div class="attach">' + files.map(attachFile).join('') + (files.length ? '<div class="attach-line"></div>' : '') +
       '<button type="button" class="attach-btn" data-action="attach">' + I.clip + 'Attach files</button>' +
-      '<input type="file" multiple hidden accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" /></div></div>' +
+      '<input type="file" data-attach-input multiple hidden accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" /></div></div>' +
       servicesField(t) +
       (closed ? '' : '<button class="submit" type="submit">' + (editing ? 'Update Order' : 'Send New Order') + '</button>') +
       '</form>';
@@ -782,16 +821,32 @@
     return '<div class="hold-banner cancel-banner">' + emoji('✋') + '<div><b>Cancellation requested · waiting for ' + (byMod ? 'the MOD' : 'an admin') + '</b><span>Reason: ' + esc(c.reason) + ' · ' + esc(heldFor(c.at).replace('held', 'sent')) + ' ago</span>' + decide + '</div></div>';
   }
 
-  // P1: a client account linked to a customer gets its customer and default agent filled in.
-  function customerHint() {
-    if (user.role !== 'CLIENT') return '';
+  // P1: a client account linked to a customer gets its customer and default agent filled in on a new ticket.
+  function linkedCustomer() {
+    if (user.role !== 'CLIENT') return null;
     var customers = store('customers', D.customers);
     var c = customers.filter(function (x) { return (x.accounts || []).indexOf(user.email) >= 0; })[0];
-    if (!c) return '<p class="cust-hint">Your account is not linked to a customer yet; the accountant fills it in.</p>';
+    if (!c) return null;
     var agents = store('agents', D.agents);
     var def = c.defaultAgent && (c.agents || []).indexOf(c.defaultAgent) >= 0 ? c.defaultAgent : (c.agents || [])[0];
     var a = agents.filter(function (x) { return x.id === def; })[0];
-    return '<p class="cust-hint">Linked customer: <b>' + esc(c.name) + '</b>' + (a ? ' · default agent ' + esc(a.name) : '') + '</p>';
+    return { customer: c, agent: a, label: c.name + (a ? ' / ' + a.name : '') };
+  }
+  function customerHint(link) {
+    if (user.role !== 'CLIENT') return '';
+    link = link || linkedCustomer();
+    if (!link) return '<p class="cust-hint">Your account is not linked to a customer yet; the accountant fills it in.</p>';
+    return '<p class="cust-hint">Linked customer: <b>' + esc(link.customer.name) + '</b>' + (link.agent ? ' · default agent ' + esc(link.agent.name) : '') + '</p>';
+  }
+
+  // One attachment row. The file's details ride on data-* so the form saves exactly the rows shown.
+  function attachFile(f) {
+    return '<div class="attach-file" data-file-name="' + esc(f.name) + '" data-file-size="' + esc(f.size) + '" data-file-by="' + esc(f.by) + '">' +
+      '<span class="attach-clip">' + I.clip + '</span><span class="attach-name"><b>' + esc(f.name) + '</b><span>' +
+      esc(f.size) + ' · By ' + esc(f.by) + '</span></span><span class="attach-more" data-action="attach-remove">' + I.more + '</span></div>';
+  }
+  function fileSize(n) {
+    return n < 1024 ? n + ' B' : n < 1048576 ? Math.round(n / 1024) + ' KB' : (n / 1048576).toFixed(1) + ' MB';
   }
 
   function ticketById(id) {
@@ -840,17 +895,25 @@
     var c = D.contacts;
     var people = state.showAllContacts ? c.list : c.list.slice(0, c.visible);
     var hidden = c.list.length - c.visible;
-    function pair(label) {
-      return '<div class="c-row"><div class="c-item"><img src="assets/zalo.png" alt="Zalo" /><span>' + esc(label.zalo) + '</span></div>' +
-        '<div class="c-item"><img src="assets/whatsapp.png" alt="WhatsApp" /><span>' + esc(label.whatsapp) + '</span></div></div>';
+    var set = state.settings;
+    // Each icon opens the app for that number: phone dialer, Zalo, WhatsApp.
+    var digits = function (tel) { return String(tel || '').replace(/[^0-9]/g, ''); };
+    var link = function (kind, tel, inner, cls) {
+      var href = kind === 'phone' ? 'tel:' + tel : kind === 'zalo' ? 'https://zalo.me/' + digits(tel).replace(/^84/, '0') : 'https://wa.me/' + digits(tel);
+      return '<a class="' + cls + '" href="' + esc(href) + '"' + (kind === 'phone' ? '' : ' target="_blank" rel="noopener"') + '>' + inner + '</a>';
+    };
+    function pair(label, tel) {
+      return '<div class="c-row">' + link('zalo', tel, '<img src="assets/zalo.png" alt="Zalo" /><span>' + esc(label.zalo) + '</span>', 'c-item') +
+        link('whatsapp', tel, '<img src="assets/whatsapp.png" alt="WhatsApp" /><span>' + esc(label.whatsapp) + '</span>', 'c-item') + '</div>';
     }
     return '<div class="contact-pane">' +
-      '<div class="c-block"><span class="c-pill hot">' + esc(c.hotline.label) + '</span>' + pair(c.hotline) + '</div>' +
-      '<div class="c-block"><span class="c-pill">' + esc(c.tugDuty.label) + '</span>' + pair(c.tugDuty) + '</div>' +
+      '<div class="c-block">' + link('phone', set.hotline, 'Hotline:\n' + esc(set.hotline), 'c-pill hot') + pair(c.hotline, set.hotline) + '</div>' +
+      '<div class="c-block">' + link('phone', set.tugDuty, esc(c.tugDuty.label), 'c-pill') + pair(c.tugDuty, set.tugDuty) + '</div>' +
       '<div class="c-block list"><span class="c-pill blue">Contact List</span>' +
       people.map(function (p) {
         return '<div class="c-name">' + esc(p.name) + '</div><div class="c-icons">' +
-          '<img src="assets/phone.png" alt="Phone" /><img src="assets/zalo.png" alt="Zalo" /><img src="assets/whatsapp.png" alt="WhatsApp" /></div>';
+          link('phone', p.tel, '<img src="assets/phone.png" alt="Phone" />', 'c-ic') + link('zalo', p.tel, '<img src="assets/zalo.png" alt="Zalo" />', 'c-ic') +
+          link('whatsapp', p.tel, '<img src="assets/whatsapp.png" alt="WhatsApp" />', 'c-ic') + '</div>';
       }).join('') +
       '<button class="c-more" data-action="more-contacts">' + (state.showAllContacts ? 'Show less' : 'Show more (' + hidden + ')') + '</button></div></div>';
   }
@@ -1220,6 +1283,45 @@
       }).join('') + '</div>') + '</div>';
   };
 
+  // A1: system-wide settings, one card; Edit opens the usual dialog. Hotline / tug duty feed Contact us.
+  var SETTINGS = [
+    ['company', 'Company name'], ['hotline', 'Hotline number'], ['tugDuty', 'Tug duty 24/7 number'], ['timezone', 'Time zone'],
+    ['currency', 'Default currency'], ['exportTime', 'Daily ledger export (cron)'], ['retention', 'Keep export files (months)'], ['push', 'Push notifications']
+  ];
+  views['admin/settings'] = function () {
+    var v = state.settings;
+    var show = function (k) { return k === 'push' ? (v.push ? 'On' : 'Off') : esc(String(v[k] == null ? '' : v[k])); };
+    return header() + '<div class="page"><p class="section-sub">Settings shared by every user and screen.</p>' +
+      '<div class="card set-card">' + SETTINGS.map(function (x) {
+        return '<div class="set-row"><span>' + esc(x[1]) + '</span><b>' + show(x[0]) + '</b></div>';
+      }).join('') + '<button class="pill-btn primary block" data-action="settings-edit">Edit settings</button></div></div>';
+  };
+  function editSettings() {
+    editDialog({
+      title: 'System settings',
+      values: state.settings,
+      fields: [
+        { name: 'company', label: 'Company name', req: true },
+        { name: 'hotline', label: 'Hotline number', req: true, half: true },
+        { name: 'tugDuty', label: 'Tug duty 24/7 number', req: true, half: true },
+        { name: 'timezone', label: 'Time zone', type: 'select', options: [{ value: 'GMT+7 (Ho Chi Minh)', label: 'GMT+7 (Ho Chi Minh)' }] },
+        { name: 'currency', label: 'Default currency', type: 'select', half: true, options: [{ value: 'VND', label: 'VND' }, { value: 'USD', label: 'USD' }] },
+        { name: 'exportTime', label: 'Daily ledger export (hh:mm)', req: true, half: true },
+        { name: 'retention', label: 'Keep export files (months)', type: 'number', req: true, half: true },
+        { name: 'push', label: 'Send push notifications', type: 'checkbox' }
+      ],
+      onSave: function (x) {
+        if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(x.exportTime)) return { error: 'Export time must be hh:mm, e.g. 00:30.' };
+        var months = Number(x.retention);
+        if (!months || months < 1 || months % 1) return { error: 'Keep files for a whole number of months.' };
+        state.settings = Object.assign({}, state.settings, x, { retention: months });
+        save('settings', state.settings);
+        render();
+        toast('Settings saved');
+      }
+    });
+  }
+
   views['admin/contact-stats'] = function () {
     var s = D.stats;
     var max = 0;
@@ -1322,9 +1424,10 @@
           (it[2] === 'admin' && admin ? '<div class="dk-subs">' + admin + '</div>' : '');
       }).join('') + '</nav>' +
       '<div class="dk-foot">' +
-      '<div class="dk-user"><div class="avatar">' + esc(initials(user.name)) + '</div><div><b>' + esc(user.name) + '</b><small>' + esc(user.email) + '</small></div></div>' +
-      '<span class="role" style="background:' + (D.roleColors[user.role] || '#6b7280') + '">' + esc(String(user.role).replace(/_/g, ' ')) + '</span>' +
-      '<a class="dk-item sm" data-action="logout">' + emoji('🚪') + '<span>Logout</span></a></div></aside>';
+      '<div class="dk-user"><div class="avatar">' + esc(initials(user.name)) + '</div>' +
+      '<div class="dk-user-id"><b>' + esc(user.name) + '</b><small>' + esc(user.email) + '</small>' +
+      '<span class="role" style="background:' + (D.roleColors[user.role] || '#6b7280') + '">' + esc(String(user.role).replace(/_/g, ' ')) + '</span></div>' +
+      '<button class="dk-logout" data-action="logout" title="Logout" aria-label="Logout">' + I.logout + '</button></div></div></aside>';
   }
 
   // Demo-only role switch, kept apart from the app's own menu (a ribbon hanging from the top edge)
@@ -1344,7 +1447,9 @@
       (top || opts.logo ? '' : '<button class="dk-back" data-action="back" aria-label="Back">' + I.back + '</button>') +
       '<div class="dk-title">' + (crumb ? '<div class="dk-crumb">' + crumb + '<span>' + esc(opts.title || screenTitle()) + '</span></div>' : '') +
       '<h1>' + esc(opts.title || screenTitle()) + '</h1></div>' +
-      '<div class="dk-top-r">' + (opts.noBell ? '' : '<button class="dk-bell" data-go="notifications" aria-label="Notifications">' + I.bell + bellBadge() + '</button>') +
+      '<div class="dk-top-r"><button type="button" class="dk-view" data-action="view-mobile" title="Open the same screen in the mobile design">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="2.5" width="11" height="19" rx="2" /><path d="M11 18.5h2" /></svg>Mobile design</button>' +
+      (opts.noBell ? '' : '<button class="dk-bell" data-go="notifications" aria-label="Notifications">' + I.bell + bellBadge() + '</button>') +
       '<div class="avatar sm" title="' + esc(user.name) + '" data-go="profile">' + esc(initials(user.name)) + '</div></div></header>';
   }
 
@@ -1401,11 +1506,13 @@
   function editSticker(index) {
     var isNew = index == null;
     var x = isNew ? { name: '', order: state.stickers.length + 1, img: '' } : state.stickers[index];
+    var picked = ''; // a newly chosen image; empty keeps the current one
     var thumb = '<div class="sticker-edit"><span class="thumb">' + (x.img ? '<img src="' + x.img + '" alt="" />' : '') + '</span>' +
-      '<div class="main"><button type="button" class="pill-btn" data-action="sticker-image">' + (isNew ? 'Choose image' : 'Replace image') + '</button>' +
+      '<div class="main"><button type="button" class="pill-btn" data-sticker-pick>' + (isNew ? 'Choose image' : 'Replace image') + '</button>' +
       '<p>' + (isNew ? 'PNG or JPG, transparent background works best' : 'Leave empty to keep the current image') + '</p></div></div>';
     formDialog(isNew ? 'Add New Sticker' : 'Edit Sticker', [{ label: 'Sticker Name', name: 'name', value: x.name, required: true }], isNew ? 'Create' : 'Save', function (v) {
       var item = { name: v.name, order: Number(v.order) || 0 };
+      if (picked) item.img = picked;
       if (isNew) state.stickers.push(Object.assign({ img: '' }, item)); else Object.assign(state.stickers[index], item);
       state.stickers.sort(function (a, b) { return a.order - b.order; });
       save('stickers', state.stickers);
@@ -1415,6 +1522,13 @@
     dlg.querySelector('.actions').insertAdjacentHTML('beforebegin',
       '<label class="field-label" style="margin-top:11px">Order</label><input class="text-input" name="order" inputmode="numeric" value="' + esc(x.order) + '" />');
     dlg.querySelector('.text-input').insertAdjacentHTML('afterend', thumb);
+    dlg.querySelector('[data-sticker-pick]').addEventListener('click', function (e) {
+      pickImage(false, function (src) {
+        picked = src;
+        dlg.querySelector('.sticker-edit .thumb').innerHTML = '<img src="' + src + '" alt="" />';
+        e.target.textContent = 'Replace image';
+      });
+    });
     dlg.style.top = Math.max(60, (window.innerHeight - dlg.offsetHeight) / 2 - 20) + 'px';
   }
 
@@ -1455,6 +1569,59 @@
     return { name: v.name, grt: Number(v.grt).toFixed(2), dwt: Number(v.dwt).toLocaleString('en-US', { minimumFractionDigits: 2 }), loa: Number(v.loa).toFixed(2) + ' m' };
   }
 
+  // Picks image file(s) and hands back data URLs, scaled to at most 640px so they fit in local storage.
+  function pickImage(multiple, done) {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = !!multiple;
+    input.onchange = function () {
+      Array.prototype.forEach.call(input.files, function (file) {
+        var reader = new FileReader();
+        reader.onload = function () {
+          var img = new Image();
+          img.onload = function () {
+            var k = Math.min(1, 640 / Math.max(img.width, img.height));
+            var c = document.createElement('canvas');
+            c.width = Math.round(img.width * k);
+            c.height = Math.round(img.height * k);
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            done(c.toDataURL(/png/.test(file.type) ? 'image/png' : 'image/jpeg', 0.85));
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    };
+    input.click();
+  }
+
+  // Assign locations: every tugboat's home location in one dialog (one row per boat).
+  function assignLocations() {
+    if (!state.locations.length) return toast('Add a location first (Manage locations)');
+    var opts = state.locations.map(function (l) { return { value: l.name, label: l.name }; });
+    var values = {};
+    state.tugboats.forEach(function (b, i) { values['loc' + i] = b.location; });
+    editDialog({
+      title: 'Assign locations',
+      text: 'Home location of each tugboat.',
+      values: values,
+      fields: state.tugboats.map(function (b, i) {
+        // A boat whose location is no longer in the list keeps it as an option, so saving does not move it by accident.
+        var own = b.location && !opts.some(function (o) { return o.value === b.location; }) ? [{ value: b.location, label: b.location }] : [];
+        return { label: b.name + (b.code ? ' · ' + b.code : ''), name: 'loc' + i, type: 'select', options: own.concat(opts), half: true };
+      }),
+      onSave: function (v) {
+        var moved = 0;
+        state.tugboats.forEach(function (b, i) {
+          if (v['loc' + i] && v['loc' + i] !== b.location) { b.location = v['loc' + i]; moved++; }
+        });
+        save('tugboats', state.tugboats);
+        toast(moved ? moved + ' tugboat' + (moved > 1 ? 's' : '') + ' moved' : 'No change');
+      }
+    });
+  }
+
   function editTugboat(index) {
     var isNew = index == null;
     var x = isNew ? { name: '', code: '', location: state.locations[0] ? state.locations[0].name : '', size: 'H', hp: '', length: '', breadth: '', draft: '', bollard: '', gt: '', propeller: '', order: state.tugboats.length + 1, img: '' } : state.tugboats[index];
@@ -1464,24 +1631,48 @@
     var html = '<div class="ios-sheet"><div class="ios-sheet-inner"><div class="sheet-bar"><h2>' + (isNew ? 'Create Tugboat' : 'Edit Tugboat') + '</h2>' +
       '<button data-action="close">Cancel</button></div><form class="sheet-body" data-tug-form>' +
       fld('Name *', 'name', x.name) + fld('Code', 'code', x.code) +
-      '<label class="small-label">Location</label><div class="select-box">' + esc(x.location) + '</div>' +
+      '<label class="small-label">Location</label><select class="text-input" name="location">' + state.locations.map(function (l) {
+        return '<option' + (l.name === x.location ? ' selected' : '') + '>' + esc(l.name) + '</option>';
+      }).join('') + '</select>' +
       '<span class="muted-label">Size class</span><input type="hidden" name="size" value="' + x.size + '" /><div class="size-seg">' +
       ['H', 'V', 'S', 'T'].map(function (s) { return '<button type="button" class="' + (s === x.size ? 'on' : '') + '" data-size="' + s + '">' + s + '</button>'; }).join('') + '</div>' +
       fld('Main Engines', 'hp', x.hp) + fld('Length (m)', 'length', x.length) + fld('Breadth (m)', 'breadth', x.breadth) + fld('Draft (m)', 'draft', x.draft) +
       fld('Bollard Pull (T)', 'bollard', x.bollard) + fld('Gross Tonnage (GT)', 'gt', x.gt) + fld('Propeller Type', 'propeller', x.propeller) +
       fld('Order (lower shows first)', 'order', x.order) +
-      (x.img ? '<img class="sheet-img" src="' + x.img + '" alt="" />' : '') +
-      '<button type="button" class="outline-block" data-action="tug-image">' + (x.img ? 'Replace Image' : 'Choose Image') + '</button>' +
-      '<p class="gallery-note">Gallery (0) · multiple images, not cropped</p>' +
-      '<button type="button" class="outline-block" style="margin-top:0" data-action="tug-gallery">Add Images</button>' +
+      '<input type="hidden" name="img" value="' + esc(x.img || '') + '" /><img class="sheet-img" data-tug-img src="' + esc(x.img || '') + '" alt=""' + (x.img ? '' : ' hidden') + ' />' +
+      '<button type="button" class="outline-block" data-tug-pick>' + (x.img ? 'Replace Image' : 'Choose Image') + '</button>' +
+      '<p class="gallery-note" data-tug-gcount></p><div class="tug-gallery" data-tug-gallery></div>' +
+      '<button type="button" class="outline-block" style="margin-top:0" data-tug-add>Add Images</button>' +
       '<button type="submit" class="sheet-submit" style="margin-top:12px">' + (isNew ? 'Create Tugboat' : 'Save Changes') + '</button></form></div></div>';
     var wrap = openOverlay(html, 'sheet', '#000000');
     var form = wrap.querySelector('[data-tug-form]');
+    var gallery = (x.gallery || []).slice();
+    function drawGallery() {
+      form.querySelector('[data-tug-gcount]').textContent = 'Gallery (' + gallery.length + ') · multiple images, not cropped';
+      form.querySelector('[data-tug-gallery]').innerHTML = gallery.map(function (src, i) {
+        return '<span><img src="' + esc(src) + '" alt="" /><button type="button" data-tug-gdel="' + i + '" aria-label="Remove image">×</button></span>';
+      }).join('');
+    }
+    drawGallery();
+    form.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-tug-pick],[data-tug-add],[data-tug-gdel]');
+      if (!b) return;
+      if (b.hasAttribute('data-tug-gdel')) { gallery.splice(Number(b.dataset.tugGdel), 1); return drawGallery(); }
+      if (b.hasAttribute('data-tug-add')) return pickImage(true, function (src) { gallery.push(src); drawGallery(); });
+      pickImage(false, function (src) {
+        form.img.value = src;
+        var im = form.querySelector('[data-tug-img]');
+        im.src = src;
+        im.hidden = false;
+        b.textContent = 'Replace Image';
+      });
+    });
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       var v = Object.fromEntries(new FormData(form));
       v.order = Number(v.order) || 0;
-      if (isNew) state.tugboats.push(Object.assign({ location: x.location, img: '' }, v)); else Object.assign(state.tugboats[index], v);
+      v.gallery = gallery;
+      if (isNew) state.tugboats.push(v); else Object.assign(state.tugboats[index], v);
       state.tugboats.sort(function (a, b) { return a.order - b.order; });
       save('tugboats', state.tugboats);
       closeOverlay();
@@ -1491,14 +1682,15 @@
   }
 
   function openFilters() {
+    var f = state.tf;
     var html = '<div class="mask light" data-action="close"></div><div class="bsheet"><div class="bsheet-head"><h3>Filters</h3>' +
       '<button data-action="close" aria-label="Close">' + I.close + '</button></div>' +
-      '<label class="field-label">User</label><input class="text-input" placeholder="Filter by user" />' +
-      '<label class="field-label">Vessel</label><input class="text-input" placeholder="Filter by vessel name" />' +
-      '<label class="field-label">Port</label><input class="text-input" placeholder="Filter by port name" />' +
-      '<label class="field-label">Created date</label><input class="text-input soft" placeholder="Filter by date created" />' +
-      '<label class="check"><input type="checkbox" />Has files</label>' +
-      '<div class="bsheet-btns"><button class="clear" data-action="clear-filters">Clear all</button><button class="done" data-action="close">Done</button></div></div>';
+      (user.role === 'CLIENT' ? '' : '<label class="field-label">User</label><input class="text-input" name="user" placeholder="Filter by user" value="' + esc(f.user || '') + '" />') +
+      '<label class="field-label">Vessel</label><input class="text-input" name="vessel" placeholder="Filter by vessel name" value="' + esc(f.vessel || '') + '" />' +
+      '<label class="field-label">Port</label><input class="text-input" name="port" placeholder="Filter by port name" value="' + esc(f.port || '') + '" />' +
+      '<label class="field-label">Created date</label><input class="text-input soft" type="date" name="date" value="' + esc(f.date || '') + '" />' +
+      '<label class="check"><input type="checkbox" name="files"' + (f.files ? ' checked' : '') + ' />Has files</label>' +
+      '<div class="bsheet-btns"><button class="clear" data-action="clear-filters">Clear all</button><button class="done" data-action="apply-filters">Done</button></div></div>';
     openOverlay(html, 'sheet', '#a8a8a8');
   }
 
@@ -1521,7 +1713,13 @@
       return openRolePicker();
     }
     if (!allowed(route)) { go(homeRoute()); return; }
-    if ((m = route.match(/^tickets\/(.+)$/))) view = views.ticket(m[1]);
+    // A ticket opens only if it is one this role may see (a CLIENT: their own), not by typing another id.
+    if ((m = route.match(/^tickets\/(.+)$/)) && m[1] !== 'new' && !myTickets().filter(function (x) { return x.id === m[1]; }).length) {
+      toast('Ticket #' + m[1] + ' is not available');
+      go('tickets');
+      return;
+    }
+    if (m) view = views.ticket(m[1]);
     else if ((m = route.match(/^admin\/users\/edit\/(\d+)$/))) view = views['admin/users/new'](Number(m[1]));
     else if (views[route]) view = views[route]();
     else { go('tickets'); return; }
@@ -1682,20 +1880,29 @@
     if ((el = t.closest('[data-edit-vessel]'))) return editVessel(Number(el.dataset.editVessel));
     if ((el = t.closest('[data-edit-port]'))) return editPort(Number(el.dataset.editPort));
     if ((el = t.closest('[data-request]'))) {
+      // Approving creates a CLIENT account and rejecting drops the request for good: both ask first.
       var rp = el.dataset.request.split(':');
-      var r = state.requests.splice(Number(rp[1]), 1)[0];
-      if (rp[0] === 'approve') {
-        state.users.unshift({ name: r.name, role: 'CLIENT', email: r.email, phone: r.phone, company: r.company, status: 'ACTIVE' });
-        save('users', state.users);
-      }
-      save('requests', state.requests);
-      render();
-      return toast(rp[0] === 'approve' ? 'Request approved' : 'Request rejected');
+      var ok = rp[0] === 'approve';
+      var rq = state.requests[Number(rp[1])];
+      return confirmDialog(ok ? 'Approve request' : 'Reject request',
+        ok ? 'Creates a CLIENT account for ' + rq.name + ' (' + rq.email + ').' : rq.name + ' (' + rq.email + ') is removed from the list and gets no account.',
+        ok ? 'Approve' : 'Reject', function () {
+          state.requests.splice(state.requests.indexOf(rq), 1);
+          if (ok) {
+            state.users.unshift({ name: rq.name, role: 'CLIENT', email: rq.email, phone: rq.phone, company: rq.company, status: 'ACTIVE' });
+            save('users', state.users);
+          }
+          save('requests', state.requests);
+          render();
+          toast(ok ? 'Request approved' : 'Request rejected');
+        }, ok);
     }
     if ((el = t.closest('[data-notif]'))) {
-      state.notifs[Number(el.dataset.notif)].read = true;
+      var nf = state.notifs[Number(el.dataset.notif)];
+      nf.read = true;
       save('notifs', state.notifs);
-      return render();
+      var dest = notifTarget(nf);
+      return dest ? go(dest) : render();
     }
 
     if (!(el = t.closest('[data-action]'))) return;
@@ -1746,15 +1953,38 @@
         user.role = '';
         render();
         break;
+      // Desktop → the same screen in the phone frame (device.html's "Desktop design" goes the other way).
+      case 'view-mobile':
+        try { sessionStorage.setItem('hvs_view', 'mobile'); } catch (err) { /* the query string carries it */ }
+        location.href = 'app.html?view=mobile' + location.hash;
+        break;
       case 'logout':
         try { localStorage.removeItem(USER_KEY); sessionStorage.removeItem(USER_KEY); sessionStorage.removeItem(ROLE_KEY); } catch (err) { /* storage blocked */ }
         location.href = 'login.html';
         break;
       case 'filters': openFilters(); break;
+      case 'apply-filters': {
+        var tf = {};
+        overlayRoot.querySelectorAll('.bsheet input[name]').forEach(function (i) {
+          var v = i.type === 'checkbox' ? i.checked : i.value.trim();
+          if (v) tf[i.name] = v;
+        });
+        state.tf = tf;
+        state.ticketPage = 1;
+        closeOverlay();
+        render();
+        break;
+      }
       case 'clear-filters':
         overlayRoot.querySelectorAll('.bsheet input').forEach(function (i) { if (i.type === 'checkbox') i.checked = false; else i.value = ''; });
         break;
-      case 'new-ticket': state.formTab = 'towage'; go('tickets/new'); break;
+      case 'new-ticket':
+        // A new order starts blank: no services picked from an earlier, unsent form (B24).
+        delete state.ticketServices.new;
+        save('ticketServices', state.ticketServices);
+        state.formTab = 'towage';
+        go('tickets/new');
+        break;
       case 'new-user': go('admin/users/new'); break;
       case 'new-vessel': go('admin/vessels/new'); break;
       case 'new-port': addPort(); break;
@@ -1769,6 +1999,15 @@
         el.remove();
         break;
       case 'attach': el.parentElement.querySelector('input[type=file]').click(); break;
+      case 'attach-remove': {
+        var row = el.closest('.attach-file');
+        confirmDialog('Remove file', row.dataset.fileName + ' is removed from this order when you send it.', 'Remove', function () {
+          var box = row.parentElement;
+          row.remove();
+          if (!box.querySelector('.attach-file') && box.querySelector('.attach-line')) box.querySelector('.attach-line').remove();
+        });
+        break;
+      }
       case 'comment': addComment(); break;
       case 'refresh-comments': render(); break;
       case 'read-all':
@@ -1794,7 +2033,7 @@
       case 'download': toast('Download started'); break;
       case 'csv': toast('CSV exported'); break;
       case 'change-password': toast('A reset link was sent to ' + user.email); break;
-      case 'assign-locations': toast('Assign locations'); break;
+      case 'assign-locations': assignLocations(); break;
       default:
         if (actions[el.dataset.action]) actions[el.dataset.action](el, e);
         break;
@@ -1826,6 +2065,66 @@
     notify('💬', 'New comment ' + (ct ? ct.vessel : '#' + id), [user.name + ': ' + text, 'Ticket #' + id]);
     render();
   }
+
+  // Send New Order / Update Order: stores the ticket and tells the operations side (bell + push for MOD / ADMIN).
+  function saveTicket(form, v) {
+    var id = (currentRoute().match(/^tickets\/(.+)$/) || [])[1];
+    var edited = id !== 'new' ? ticketById(id) : null;
+    var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+    var now = new Date();
+    var day = pad(now.getDate()) + '/' + pad(now.getMonth() + 1) + '/' + now.getFullYear();
+    // "hh:mm - dd/MM/yyyy" (POB) → "dd/MM/yyyy hh:mm" (ET Berth / Unberth on the card).
+    var et = function (p) { var m = String(p || '').match(/^(\d{1,2}:\d{2})\s*-\s*(\d{2}\/\d{2}\/\d{4})$/); return m ? m[2] + ' ' + m[1] : ''; };
+    var files = Array.prototype.map.call(form.querySelectorAll('.attach-file'), function (r) {
+      return { name: r.dataset.fileName, size: r.dataset.fileSize, by: r.dataset.fileBy };
+    });
+    var fields = {
+      vessel: v.vessel.trim(), port: v.port.trim(), dwt: v.dwt || '', loa: v.loa || '', note: v.note || '',
+      pobIn: v.pobIn || '', pobOut: v.pobOut || '', berth: et(v.pobIn), unberth: et(v.pobOut), customer: v.customer || '',
+      services: Array.prototype.map.call(form.querySelectorAll('.svc-chip.on'), function (c) { return c.dataset.svc; }),
+      attachments: files, files: files.length
+    };
+    if (v.customerId) { fields.customerId = v.customerId; fields.agentId = v.agentId || ''; }
+    var lines = ['Port: ' + fields.port].concat(fields.pobIn ? ['POB in: ' + fields.pobIn] : [], fields.pobOut ? ['POB out: ' + fields.pobOut] : []);
+    var t, msg;
+    if (edited) {
+      t = edited;
+      Object.keys(fields).forEach(function (k) { t[k] = fields[k]; });
+      // A client changing a Confirmed order sends it back for re-confirmation (on hold or not).
+      if (user.role === 'CLIENT' && t.status === 'Confirmed') { t.status = 'New Update'; msg = 'Order updated · status New Update'; }
+      else msg = 'Order updated';
+      notify('✏️', 'Order updated ' + t.vessel, lines.concat('Ticket #' + t.id), null, 'by:' + t.by);
+    } else {
+      // Ticket number = the day (ddMMyyyy) + that day's running number.
+      var prefix = day.replace(/\//g, '');
+      var seq = state.tickets.reduce(function (n, x) { return x.id.indexOf(prefix) === 0 ? Math.max(n, Number(x.id.slice(prefix.length)) || 0) : n; }, 0) + 1;
+      t = { id: prefix + seq, status: 'Pending', created: day + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes()),
+        by: user.role === 'CLIENT' ? D.demoClient : user.name };
+      Object.keys(fields).forEach(function (k) { t[k] = fields[k]; });
+      state.tickets.unshift(t);
+      msg = 'New order sent · Ticket #' + t.id;
+      notify('📝', 'New order ' + t.vessel, lines.concat('Ticket #' + t.id), null, 'by:' + t.by);
+    }
+    save('tickets', state.tickets);
+    // The pick now lives on the ticket; the next new order starts with nothing selected.
+    delete state.ticketServices[id];
+    save('ticketServices', state.ticketServices);
+    toast(msg);
+    if (edited) render(); else go('tickets/' + t.id);
+  }
+
+  // Picked files show as attachment rows right away (no re-render, so typed fields stay); Send / Update saves them.
+  document.addEventListener('change', function (e) {
+    if (!e.target.matches('[data-attach-input]')) return;
+    var box = e.target.closest('.attach');
+    var btn = box.querySelector('.attach-btn');
+    if (e.target.files.length && !box.querySelector('.attach-line')) btn.insertAdjacentHTML('beforebegin', '<div class="attach-line"></div>');
+    var line = box.querySelector('.attach-line');
+    Array.prototype.forEach.call(e.target.files, function (f) {
+      line.insertAdjacentHTML('beforebegin', attachFile({ name: f.name, size: fileSize(f.size), by: user.name }));
+    });
+    e.target.value = '';
+  });
 
   document.addEventListener('change', function (e) {
     if (!e.target.matches('[data-tsize]')) return;
@@ -1878,15 +2177,7 @@
         box.querySelector('.svc-error').hidden = picked > 0;
         box.classList.toggle('invalid', !picked);
         if (!picked) { box.scrollIntoView({ behavior: 'smooth', block: 'center' }); break; }
-        var edited = ticketById((currentRoute().match(/^tickets\/(.+)$/) || [])[1]);
-        if (edited && user.role === 'CLIENT' && edited.status === 'Confirmed') {
-          edited.status = 'New Update';
-          save('tickets', state.tickets);
-          toast('Order updated · status New Update');
-          render();
-          break;
-        }
-        toast(currentRoute() === 'tickets/new' ? 'New order sent' : 'Order updated');
+        saveTicket(form, v);
         break;
       }
       case 'user': {
@@ -1909,7 +2200,7 @@
 
   // ---------- extensions (Phase 4 screens live in board.js) ----------
 
-  var actions = {};
+  var actions = { 'settings-edit': editSettings };
   var api = {
     D: D, state: state, user: user, views: views, actions: actions, I: I,
     esc: esc, emoji: emoji, store: store, save: save, go: go, toast: toast, statusBar: statusBar,

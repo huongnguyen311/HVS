@@ -1,7 +1,7 @@
 // Ticket, time and section helpers shared by the board table and its windows.
 import dayjs from 'dayjs';
 import D from '../data';
-import { DAY0, SLOTS, absSlot, isTerminal, jobSvc, slotOf, svc } from './timeline';
+import { BOARD_DAY0, SLOTS, absSlot, isTerminal, jobSvc, minutesAt, sheetMin, slotOf, svc } from './timeline';
 
 export const PENDING = 'NEW TICKET / PENDING';
 export const UNASSIGNED = 'Unassigned location';
@@ -16,7 +16,7 @@ export const clientOf = (nick) => D.boardClients.find((c) => c.nick === nick);
 export const statusKey = (st) => st.toLowerCase().replace('_', '-');
 
 // ---------- times ----------
-// The board stores POB times as the client's spreadsheet does: 'hhmm/dd.08'.
+// The board stores POB times as the client's spreadsheet does: 'hhmm/dd.mm'.
 
 export function toDayjs(t) {
   const m = /^(\d\d)(\d\d)\/(\d\d)\.(\d\d)$/.exec((t || '').replace(/\s*✓$/, ''));
@@ -25,26 +25,23 @@ export function toDayjs(t) {
 
 export const fromDayjs = (d) => (d ? d.format('HHmm/DD.MM') : '');
 
-// 'Monday 24/08/2026 09:00' for the POB cell tooltip.
+// 'Thursday 01/10/2026 09:00' for the POB cell tooltip.
 export function pobTitle(t) {
   const d = toDayjs(t);
   return d ? d.format('dddd DD/MM/YYYY HH:mm') : '';
 }
 
-// Minutes since 24/08 00:00 ↔ '24/08 08:00'.
+// Minutes since day 0 00:00 ↔ '01/10 08:00'.
 export function fmtMin(min) {
-  return dayjs('2026-08-24T00:00').add(min, 'minute').format('DD/MM HH:mm');
+  return dayjs(BOARD_DAY0 + 'T00:00').add(min, 'minute').format('DD/MM HH:mm');
 }
 
 export function parseMin(s) {
   const m = /^(\d\d)\/(\d\d) (\d\d):(\d\d)$/.exec((s || '').trim());
-  return m ? (Number(m[1]) - DAY0) * 1440 + Number(m[3]) * 60 + Number(m[4]) : null;
+  return m ? minutesAt(Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4])) : null;
 }
 
-export const pobMin = (t) => {
-  const d = toDayjs(t);
-  return d ? d.diff(dayjs('2026-08-24T00:00'), 'minute') : null;
-};
+export const pobMin = sheetMin;
 
 // A job's real window [from, to] in minutes: the fixture's `win`, else its cells on the timeline.
 export function jobWindow(j) {
@@ -57,9 +54,9 @@ export function jobWindow(j) {
 
 export const winText = ([a, b]) => fmtMin(a) + ' → ' + fmtMin(b);
 
-// ---------- the 2-day window (the day arrows move it; day 0 = 24/08/2026) ----------
+// ---------- the 2-day window (the day arrows move it; day 0 = BOARD_DAY0) ----------
 
-const dayOf = (d) => dayjs('2026-08-24').add(d, 'day');
+const dayOf = (d) => dayjs(BOARD_DAY0).add(d, 'day');
 export const dayLabel = (d) => dayOf(d).format('dddd DD/MM/YYYY');
 // Short enough for the phone toolbar; the year is in the timeline's day labels.
 export const rangeLabel = (d) => dayOf(d).format('DD/MM') + ' – ' + dayOf(d + 1).format('DD/MM');

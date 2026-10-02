@@ -1,8 +1,9 @@
+import dayjs from 'dayjs';
 import { useState } from 'react';
 import { Alert, AutoComplete, Button, Flex, Input, Modal, Popconfirm, Select, Space, Tag } from 'antd';
 import { CheckCircleOutlined, CopyOutlined, CloseCircleOutlined, ExclamationCircleFilled, FlagOutlined, PlusOutlined, SwapOutlined } from '@ant-design/icons';
-import { clientItems, ctxFilter, ctxOptions, fmtMin, pobMin, portItems, ticketId, vesselItems } from '../board/model.jsx';
-import { twins } from '../board/timeline';
+import { clientItems, ctxFilter, ctxOptions, fmtMin, fromDayjs, pobMin, portItems, ticketId, vesselItems } from '../board/model.jsx';
+import { BOARD_DAY0, twins } from '../board/timeline';
 import { STATUS, canMove, canRun, isAdmin, isTerminal } from '../board/status';
 import PobField, { pobPatch, pobValue } from './PobField';
 import { FuelInput, fuelDigits } from './FuelModal';
@@ -77,6 +78,7 @@ export default function TicketActionsModal({ row: r, rows = [], role, mods, tag 
   };
   const [f, setF] = useState(initial);
   const [mod, setMod] = useState(r.mod || undefined); // the MOD picked on New ticket, if any
+  const [why, setWhy] = useState(''); // optional reason for Not valid
   const set = (patch) => setF((x) => ({ ...x, ...patch }));
   // Any edit, including picking a different MOD on duty, enables Save.
   const dirty = JSON.stringify(f) !== JSON.stringify(initial) || (!!mod && mod !== r.mod);
@@ -169,7 +171,7 @@ export default function TicketActionsModal({ row: r, rows = [], role, mods, tag 
             <PobField value={f.pobIn} disabled={ro} onChange={(pobIn) => set({ pobIn })} />
           </Field>
           <Field label="POB out" style={{ flex: '1 1 260px' }}>
-            <PobField value={f.pobOut} disabled={ro} fallback="0800/25.08" onChange={(pobOut) => set({ pobOut })} />
+            <PobField value={f.pobOut} disabled={ro} fallback={fromDayjs(dayjs(BOARD_DAY0 + 'T08:00').add(1, 'day'))} onChange={(pobOut) => set({ pobOut })} />
           </Field>
         </Flex>
         <Flex gap={10} wrap>
@@ -234,9 +236,10 @@ export default function TicketActionsModal({ row: r, rows = [], role, mods, tag 
             {can('NOT_VALID') && (
             <Popconfirm
               title="Mark as not valid?"
+              description={<Input.TextArea className="pbm-why" rows={2} value={why} placeholder="Reason (optional)" onChange={(e) => setWhy(e.target.value)} />}
               okText="Not valid"
               okButtonProps={{ danger: true }}
-              onConfirm={() => status({ status: 'NOT_VALID', cancelReq: false, hold: null }, 'Marked not valid')}
+              onConfirm={() => status({ status: 'NOT_VALID', cancelReq: false, hold: null, invalidReason: why.trim() }, 'Marked not valid')}
             >
               <Button danger icon={<CloseCircleOutlined />}>
                 Not valid

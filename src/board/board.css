@@ -223,7 +223,7 @@
   position: sticky;
   left: 0;
   display: inline-block;
-  width: 390px;
+  width: min(390px, 100vw);
 }
 
 .pb-table .ant-table-tbody > tr.pb-sec > td {
@@ -838,6 +838,41 @@
   white-space: nowrap;
 }
 
+/* Extra keys and marks: desktop only (the phone bar has room for BAR_KEYS). */
+.bsw-x {
+  display: none;
+}
+
+/* Desktop keeps it to one line, keys spread evenly across the full width (7px at the least);
+   a window too narrow for every key scrolls the line sideways. */
+body.desk .bbar button.blegend {
+  justify-content: space-between;
+  gap: 7px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+body.desk .bsw-x {
+  display: inline-flex;
+}
+
+body.desk .bsw .lg,
+body.desk .bsw .pb-twin-tag {
+  padding: 0 3px;
+  font-size: 10px;
+  line-height: 14px;
+}
+
+body.desk .blegend-more {
+  display: none;
+}
+
+.bsw-sep {
+  width: 1px;
+  height: 12px;
+  background: #d1d5db;
+}
+
 .bsw i {
   width: 10px;
   height: 10px;
@@ -974,6 +1009,21 @@
   flex: none;
 }
 
+/* Phones narrower than the 390px design: the AI button drops "suggest", then the row tightens, so the
+   filter and display buttons stay on screen. */
+@media (max-width: 379px) {
+  .bbar .bai-x {
+    display: none;
+  }
+}
+
+@media (max-width: 359px) {
+  .bbar-row {
+    gap: 6px;
+    padding: 0 10px;
+  }
+}
+
 .fs-field {
   flex: 1;
   min-width: 0;
@@ -1077,6 +1127,11 @@
 
 .pbm-label .req {
   color: #dc2626;
+}
+
+.pbm-label .opt {
+  color: #9ca3af;
+  font-weight: 400;
 }
 
 .pbm-history {
@@ -1510,4 +1565,22 @@
   margin-bottom: 8px;
   font-size: 12.5px;
   color: #b45309;
+}
+
+/* Optional reason inside the Not valid confirm (Ticket actions). */
+.pbm-why {
+  width: 240px;
+  max-width: 100%;
+  margin-top: 6px;
+}
+
+/* Board display: where your default columns come from (set on Admin › Board Defaults). */
+.cfg-source {
+  margin: 2px 0 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f3f6ff;
+  font-size: 13px;
+  line-height: 18px;
+  color: #374151;
 }

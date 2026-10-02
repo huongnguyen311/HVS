@@ -1,9 +1,10 @@
 import dayjs from 'dayjs';
 import { Checkbox, DatePicker, Flex, Select, TimePicker } from 'antd';
 import { fromDayjs, toDayjs } from '../board/model.jsx';
+import { BOARD_DAY0 } from '../board/timeline';
 
 // POB time as the Ticket actions / Assign windows edit it: a mode (Time · Not set · # never), for Time the
-// date-time, and whether the pilot signed it. value = { mode, t, signed } with t in the board's 'hhmm/dd.08' form.
+// date-time, and whether the pilot signed it. value = { mode, t, signed } with t in the board's 'hhmm/dd.mm' form.
 export const pobValue = (row, field) => ({
   mode: row[field + 'Never'] ? 'never' : row[field] ? 'time' : 'unset',
   t: (row[field] || '').replace(/\s*✓$/, ''),
@@ -32,7 +33,7 @@ export default function PobField({ value, onChange, disabled, fallback, noSign }
           { value: 'unset', label: 'TBC' },
           { value: 'never', label: '#' }
         ]}
-        onChange={(mode) => onChange({ mode, t: mode === 'time' ? value.t || fallback || '0800/24.08' : value.t, signed: mode === 'time' && value.signed })}
+        onChange={(mode) => onChange({ mode, t: mode === 'time' ? value.t || fallback || fromDayjs(dayjs(BOARD_DAY0 + 'T08:00')) : value.t, signed: mode === 'time' && value.signed })}
       />
       {value.mode === 'time' && (
         <>
@@ -46,7 +47,7 @@ export default function PobField({ value, onChange, disabled, fallback, noSign }
             suffixIcon={null}
             disabled={disabled}
             value={d}
-            onChange={(t) => t && put(t.format('HH:mm'), (d || dayjs('2026-08-24')).format('YYYY-MM-DD'))}
+            onChange={(t) => t && put(t.format('HH:mm'), (d || dayjs(BOARD_DAY0)).format('YYYY-MM-DD'))}
           />
           <DatePicker
             className="pob-in pob-date"

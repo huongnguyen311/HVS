@@ -26,6 +26,15 @@
   --navy: #115293;
   --shadow: 0 2px 5px rgba(0, 0, 0, 0.12), 0 0 1px rgba(0, 0, 0, 0.12);
   --pad: 15px;
+  /* Screen height for full-height boxes. On a phone 100vh counts the browser bars as hidden, so anything
+     sized from it runs under them; 100dvh is the height actually on screen. */
+  --app-h: 100vh;
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --app-h: 100dvh;
+  }
 }
 
 * {
@@ -121,7 +130,7 @@ svg {
 .hdr-bell {
   position: absolute;
   top: 4px;
-  left: 305px;
+  right: 59px; /* 305px from the left on the 390px design; anchored right so narrower phones keep it */
   width: 26px;
   height: 26px;
   display: flex;
@@ -155,7 +164,7 @@ svg {
 .hdr-menu {
   position: absolute;
   top: 0;
-  left: 342px;
+  right: 18px; /* 342px from the left at 390px */
   width: 30px;
   height: 32px;
   display: flex;
@@ -382,6 +391,12 @@ svg {
   width: 18px;
   height: 18px;
   margin-right: 7px;
+}
+
+/* Some Filters-sheet filter is on (the label carries the count). */
+.strip-filters.on {
+  color: #1463ff;
+  white-space: nowrap;
 }
 
 .chips {
@@ -925,6 +940,17 @@ svg {
   cursor: pointer;
 }
 
+/* Contact us: every pill and icon is a link (tel: / Zalo / WhatsApp). */
+a.c-pill,
+a.c-item,
+a.c-ic {
+  text-decoration: none;
+}
+
+a.c-ic {
+  display: flex;
+}
+
 .c-more {
   display: block;
   margin: 24px auto 4px;
@@ -1188,6 +1214,7 @@ svg {
   right: 0;
   z-index: 61;
   width: 337px;
+  max-width: calc(100% - 40px);
   background: #fff;
   transform: translateX(100%);
   transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -2309,7 +2336,7 @@ svg {
 /* ---------- sheets (full-screen forms) ---------- */
 
 .sheet-page {
-  min-height: 100vh;
+  min-height: var(--app-h);
   background: var(--bg);
 }
 
@@ -2529,6 +2556,60 @@ svg {
   color: var(--muted);
 }
 
+.sheet-img[hidden] {
+  display: none;
+}
+
+/* Tugboat gallery: thumbnails, each with a remove button. */
+.tug-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0 10px;
+}
+
+.tug-gallery:empty {
+  display: none;
+}
+
+.tug-gallery span {
+  position: relative;
+}
+
+.tug-gallery img {
+  display: block;
+  width: 72px;
+  height: 54px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.tug-gallery button {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0;
+}
+
+.tug-gallery button::after {
+  content: '×';
+  display: block;
+  width: 20px;
+  height: 20px;
+  margin: 6px;
+  border-radius: 50%;
+  background: #111827;
+  color: #fff;
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
+}
+
 /* ---------- dialogs ---------- */
 
 .dialog {
@@ -2548,6 +2629,15 @@ svg {
 .dialog.show {
   opacity: 1;
   transform: scale(1);
+}
+
+/* Short phones: dialogs open at least 60px down (app.js), so a long one scrolls rather than losing its buttons. */
+@media (max-height: 700px) {
+  .dialog {
+    max-height: calc(var(--app-h) - 84px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
 }
 
 .dialog h3 {
@@ -2584,6 +2674,15 @@ svg {
 .dialog .actions .pill-btn.outline {
   border-color: #d1d5db;
   color: var(--text);
+}
+
+/* A filter dialog's Reset: a quiet text button on the left, so it is not mistaken for Apply. */
+.dialog .actions .ed-reset {
+  flex: none;
+  padding: 0 4px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--blue);
 }
 
 .sticker-edit {
@@ -2634,6 +2733,10 @@ svg {
   right: 0;
   bottom: 0;
   z-index: 71;
+  /* A short phone (or one with the browser bars showing) scrolls the sheet instead of cutting its top off. */
+  max-height: calc(var(--app-h) - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 22px 15px 23px;
   border-radius: 24px 24px 0 0;
   background: #fff;
@@ -3563,21 +3666,28 @@ body.desk .dk-foot {
   border-top: 1px solid var(--line);
 }
 
+/* User card: avatar | name, email, role | logout icon button. */
 body.desk .dk-user {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 4px 6px 8px;
+  padding: 10px 10px 10px 12px;
   min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f8fafc;
 }
 
-body.desk .dk-user > div:last-child {
+body.desk .dk-user-id {
+  flex: 1;
   min-width: 0;
 }
 
 body.desk .dk-user b {
   display: block;
   font-size: 14px;
+  line-height: 18px;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3586,10 +3696,50 @@ body.desk .dk-user b {
 body.desk .dk-user small {
   display: block;
   font-size: 12px;
+  line-height: 16px;
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+body.desk .dk-user .role {
+  display: inline-block;
+  margin-top: 5px;
+  padding: 0 7px;
+  border-radius: 5px;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 18px;
+  text-transform: uppercase;
+}
+
+body.desk .dk-logout {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+body.desk .dk-logout svg {
+  width: 17px;
+  height: 17px;
+}
+
+body.desk .dk-logout:hover {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
 }
 
 body.desk .dk-user .avatar,
@@ -3598,17 +3748,6 @@ body.desk .dk-top .avatar.sm {
   height: 38px;
   font-size: 15px;
   line-height: 38px;
-}
-
-body.desk .dk-foot > .role {
-  display: inline-block;
-  margin: 0 6px 8px;
-  padding: 0 10px;
-  border-radius: 6px;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 22px;
 }
 
 body.desk .dk-main {
@@ -3682,6 +3821,32 @@ body.desk .dk-top-r {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+/* Same look as device.html's "Desktop design" switch. */
+body.desk .dk-view {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px 0 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 19px;
+  background: #fff;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+body.desk .dk-view:hover {
+  border-color: #1463ff;
+  color: #1463ff;
+}
+
+body.desk .dk-view svg {
+  width: 18px;
+  height: 18px;
 }
 
 body.desk .dk-bell {
@@ -4222,4 +4387,31 @@ body:not(.desk) .dt-table td.dt-act {
 
 .dt-btns[hidden] {
   display: none;
+}
+
+/* Admin › System settings: one card of label / value rows. */
+.set-card {
+  padding: 6px 16px 16px;
+}
+
+.set-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid #eef0f3;
+  font-size: 14px;
+}
+
+.set-row span {
+  color: #6b7280;
+}
+
+.set-row b {
+  font-weight: 600;
+  text-align: right;
+}
+
+.set-card .pill-btn {
+  margin-top: 14px;
 }
