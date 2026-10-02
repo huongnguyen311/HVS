@@ -1,0 +1,966 @@
+/* Phase 4 · pricing & ledger screens, the shared picker sheet and edit dialog, client cancel requests. */
+
+/* ---------- picker sheet (app.js picker()) ---------- */
+
+.bsheet.pk-sheet {
+  display: flex;
+  flex-direction: column;
+  max-height: 82vh;
+  padding-bottom: 16px;
+}
+
+.pk-sheet .bsheet-head {
+  margin-bottom: 12px;
+}
+
+.pk-head {
+  margin-bottom: 10px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: #f3f4f6;
+  font-size: 12.5px;
+  line-height: 17px;
+  color: #374151;
+}
+
+.pk-head b,
+.pk-head span {
+  display: block;
+}
+
+.pk-search {
+  flex: none;
+  margin-bottom: 8px;
+}
+
+.pk-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0 -4px;
+}
+
+.pk-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 6px;
+  border-bottom: 1px solid #f0f0f0;
+  text-align: left;
+}
+
+.pk-item.on {
+  background: #eff4ff;
+}
+
+.pk-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.pk-text b {
+  display: block;
+  font-size: 14.5px;
+  color: var(--text);
+}
+
+.pk-text small,
+.pk-text em {
+  display: block;
+  font-size: 12px;
+  line-height: 16px;
+  color: #6b7280;
+}
+
+.pk-text em {
+  font-style: normal;
+  color: #b45309;
+}
+
+.pk-mark {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--blue);
+}
+
+.pk-empty {
+  padding: 18px 6px;
+  font-size: 13px;
+  color: #9ca3af;
+  text-align: center;
+}
+
+.pk-sheet .bsheet-btns {
+  flex: none;
+  margin-top: 12px;
+}
+
+/* ---------- edit dialog (app.js editDialog()) ---------- */
+
+.dialog.ed-dialog {
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+.ed-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 10px;
+}
+
+.ed-f {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.ed-f.half {
+  flex: 1 1 calc(50% - 5px);
+}
+
+.ed-dialog .field-label {
+  margin: 12px 0 4px;
+  font-size: 14px;
+}
+
+.ed-dialog .text-input,
+.ed-dialog select.text-input {
+  width: 100%;
+  height: 40px;
+}
+
+.ed-dialog select.text-input {
+  padding: 0 8px;
+  background: #fff;
+}
+
+.ed-hint {
+  margin-top: 4px;
+  font-size: 11.5px;
+  line-height: 15px;
+  color: #6b7280;
+}
+
+.ed-check {
+  margin-top: 12px;
+}
+
+.ed-color {
+  width: 100%;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid var(--field);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.ed-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ed-range span {
+  flex: none;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.ed-list {
+  border: 1px solid var(--field);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ed-q {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-bottom: 1px solid #eee;
+  outline: 0;
+  font-size: 13.5px;
+}
+
+.ed-opts {
+  max-height: 168px;
+  overflow-y: auto;
+}
+
+.ed-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 10px;
+  border-bottom: 1px solid #f5f5f5;
+  cursor: pointer;
+}
+
+.ed-opt input {
+  margin-top: 3px;
+}
+
+.ed-opt b {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.ed-opt small {
+  display: block;
+  font-size: 11.5px;
+  line-height: 15px;
+  color: #6b7280;
+}
+
+.ed-msg {
+  margin-top: 12px;
+  padding: 9px 11px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.ed-msg.err {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.ed-msg.warn {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.ed-dialog .actions {
+  margin-top: 20px;
+}
+
+.ed-dialog .actions .pill-btn {
+  width: auto;
+  min-width: 93.5px;
+  padding: 0 14px;
+}
+
+/* ---------- client cancel request (ticket list / form) ---------- */
+
+.hold-pill.cancel-pill {
+  border-color: #fdba74;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.hold-link.cancel-link {
+  border-color: #f87171;
+  color: #b91c1c;
+}
+
+.box-title .hold-link + .hold-link {
+  margin-left: 6px;
+}
+
+.hold-banner.cancel-banner {
+  border-color: #fdba74;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.cancel-acts {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.cancel-acts .pill-btn {
+  height: 30px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.cust-hint {
+  margin: 4px 0 0 22px;
+  font-size: 12px;
+  line-height: 16px;
+  color: #4b5563;
+}
+
+/* ---------- ledger ---------- */
+
+/* Tabs read as navigation (underline), filters as chips below: two kinds of control, two looks. */
+.lg-tabs {
+  display: flex;
+  gap: 18px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.lg-tabs button {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.lg-tabs button.on {
+  border-bottom-color: var(--blue);
+  color: var(--blue);
+  font-weight: 600;
+}
+
+.lg-tabs em {
+  margin-left: 5px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: #ef4444;
+  font-size: 11px;
+  font-style: normal;
+  line-height: 16px;
+  color: #fff;
+}
+
+.lg-flag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  background: #fffbeb;
+  font-size: 12.5px;
+  line-height: 17px;
+  text-align: left;
+  color: #92400e;
+}
+
+.lg-flag span {
+  flex: 1;
+  min-width: 0;
+}
+
+.lg-flag b {
+  flex: none;
+  font-weight: 600;
+  color: #b45309;
+  text-decoration: underline;
+}
+
+.lg-flag.on {
+  border-color: #f59e0b;
+  background: #fef3c7;
+}
+
+.lg-sel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: #6b7280;
+}
+
+.lg-sel > span {
+  flex: 1;
+  min-width: 0;
+}
+
+.lg-sel b {
+  color: var(--text);
+}
+
+.lg-sel span button {
+  font-size: 12.5px;
+  color: var(--blue);
+}
+
+.lg-sel .lg-sel-go {
+  flex: none;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 16px;
+  background: var(--blue);
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.lg-ro {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.dt-table td.lg-c-sel,
+.dt-table th.lg-c-sel {
+  width: 32px;
+  text-align: center;
+}
+
+.lg-sub {
+  margin-left: 5px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #e0e7ff;
+  font-size: 10.5px;
+  color: #3730a3;
+  white-space: nowrap;
+}
+
+.lg-warn {
+  margin-left: 5px;
+  color: #d97706;
+  cursor: help;
+}
+
+.lg-miss {
+  color: #d97706;
+  font-weight: 600;
+}
+
+.lg-err {
+  color: #b91c1c;
+  font-weight: 600;
+  cursor: help;
+}
+
+.lg-was {
+  color: #9ca3af;
+  text-decoration: line-through;
+}
+
+.lg-diff {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 400;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.lg-pick {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 170px;
+  padding: 3px 8px;
+  border: 1px dashed #93b4ff;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1e3a8a;
+  text-align: left;
+}
+
+.lg-pick.ro {
+  border-color: transparent;
+}
+
+.lg-pick small {
+  font-size: 10.5px;
+  font-weight: 400;
+  color: #6b7280;
+}
+
+/* ---------- export ---------- */
+
+/* Export: three numbered steps, then a button that says what it will make. */
+.lx-step {
+  margin-bottom: 12px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.lx-step h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.lx-step h3 i {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #e8efff;
+  font-size: 12px;
+  font-style: normal;
+  color: var(--blue);
+}
+
+.lx-step h3 small {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.lx-step h3 button {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--blue);
+}
+
+.lx .lx-mode {
+  margin-bottom: 12px;
+}
+
+.lx-sum {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f3f6fd;
+  font-size: 13.5px;
+  color: var(--text);
+}
+
+.lx-sum span {
+  flex: 1;
+  min-width: 0;
+}
+
+.lx-sum.empty {
+  background: var(--bg);
+  color: var(--muted);
+}
+
+.lx-sum button {
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--blue);
+}
+
+.lx-range {
+  display: flex;
+  gap: 10px;
+}
+
+.lx-range label {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.lx-range .text-input {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.lx-count {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.lx-count b {
+  color: var(--text);
+}
+
+/* Columns: a two-column checklist, A→O top to bottom. */
+.lx-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(8, auto);
+  gap: 2px 10px;
+}
+
+.lx-col {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 7px 6px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  color: var(--muted);
+  text-align: left;
+}
+
+.lx-col.on {
+  color: var(--text);
+}
+
+.lx-box {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid #c4cad4;
+  border-radius: 5px;
+  background: var(--surface);
+}
+
+.lx-col.on .lx-box {
+  border-color: var(--blue);
+  background: var(--blue);
+  color: #fff;
+}
+
+.lx-box svg {
+  width: 12px;
+  height: 12px;
+}
+
+.lx-col b {
+  flex: none;
+  width: 14px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.lx-name {
+  overflow: hidden;
+  min-width: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lx-ok {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #15803d;
+}
+
+.lx-ok svg {
+  width: 16px;
+  height: 16px;
+}
+
+.lx-ok.idle {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.lx-errors {
+  padding: 12px;
+  border: 1px solid #fca5a5;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.lx-errors ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.lx-errors li + li {
+  margin-top: 4px;
+}
+
+.lx-errors li button {
+  color: #b91c1c;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+/* The button is pinned to the bottom of the screen (like .pager); the page leaves room for it. */
+body:not(.desk) .lg-page.lx {
+  padding-bottom: 96px;
+}
+
+.lx-foot {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 24;
+  padding: 10px 16px 16px;
+  background: var(--bg);
+  border-top: 1px solid #e5e5e5;
+}
+
+.lx-foot p {
+  margin-bottom: 6px;
+  font-size: 12.5px;
+  text-align: center;
+  color: #b45309;
+}
+
+.lx-go svg {
+  width: 14px;
+  height: 14px;
+}
+
+.pill-btn.lx-go:disabled {
+  background: #c7d2e8;
+  cursor: default;
+}
+
+/* ---------- AI proposals ---------- */
+
+.ai-card {
+  margin-top: 12px;
+  padding: 14px;
+}
+
+.ai-card.done {
+  opacity: 0.65;
+}
+
+.ai-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.ai-new,
+.ai-st {
+  flex: none;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 10px;
+  background: #f3e8ff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 20px;
+  color: #7e22ce;
+}
+
+.ai-st {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.ai-line {
+  margin-top: 6px;
+  font-size: 12.5px;
+  line-height: 17px;
+  color: #374151;
+}
+
+.ai-line.muted {
+  color: #9ca3af;
+}
+
+.ai-card .two-btns {
+  margin-top: 10px;
+}
+
+/* .two-btns makes its buttons transparent; YES keeps its filled look. */
+.ai-card .two-btns .pill-btn.primary {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+
+/* ---------- admin pricing screens ---------- */
+
+.lk-card,
+.di-card {
+  padding: 12px 14px;
+}
+
+.lk-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.lk-card b,
+.lk-card span {
+  display: block;
+}
+
+.lk-card span {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.di-card {
+  margin-top: 16px;
+}
+
+.di-card h4 {
+  font-size: 14.5px;
+}
+
+.dt-table td.wrap {
+  min-width: 220px;
+  white-space: normal;
+}
+
+.dt-toggle {
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.dt-toggle.on {
+  border-color: #16a34a;
+  background: #dcfce7;
+  color: #15803d;
+  font-weight: 600;
+}
+
+.dt-swatches {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.dt-swatches i {
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+
+.pr-result {
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: #f3f4f6;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.pr-result.ok {
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.pr-result.err {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.bd-order {
+  margin: 10px 0 4px;
+  padding: 8px 11px;
+  border-radius: 8px;
+  background: #eff4ff;
+  font-size: 12.5px;
+  line-height: 17px;
+  color: #1e3a8a;
+}
+
+/* Ledger / files toolbars stack: tabs, filter chips, notes. */
+.dt-tools .lg-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+body:not(.desk) .dt-tools:has(.lg-tools) {
+  overflow: visible;
+}
+
+.lg-tools .lg-tabs,
+.lg-tools .dt-chips {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.lg-tools .lg-tabs {
+  margin-bottom: 6px;
+}
+
+/* Board Defaults: tap a column chip to show / hide it at that level; inherited columns look faded. */
+.bd-cols span[data-action] {
+  cursor: pointer;
+}
+
+.bd-cols span.req {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.bd-cols.inherited span.on {
+  background: #eef0f6;
+  color: #6b7280;
+}
+
+.bd-card .cfg-seg button[disabled] {
+  color: #6b7280;
+  cursor: default;
+}
+
+.bd-card .cfg-seg button[disabled].on {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.bd-top h4 small {
+  margin-left: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+/* Ledger tabs frame (ledgerPage): tabs first, then the tab's note, on every tab. */
+.lg-page .lg-tabs {
+  margin-bottom: 10px;
+}
+
+.lg-page .lg-note {
+  margin-bottom: 12px;
+}
+
+.ed-opt em {
+  display: block;
+  font-size: 11.5px;
+  line-height: 15px;
+  font-style: normal;
+  color: #b45309;
+}
+
+/* Frozen ledger columns (tick box + A · No.): fixed widths so the No. column's left offset (36px) holds. */
+.dt-table td.lg-c-sel,
+.dt-table th.lg-c-sel {
+  box-sizing: border-box;
+  width: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  padding: 0 !important;
+}
+
+.dt-table td.lg-c-sel input {
+  width: 20px;
+  height: 20px;
+}
+
+/* The whole cell ticks the line (a 13px box alone is too small to hit on a phone). */
+.lg-tick {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+/* J · the editable picker: at least 36px tall so it is easy to hit on a phone. */
+button.lg-pick {
+  justify-content: center;
+  min-height: 36px;
+}

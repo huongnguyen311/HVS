@@ -1,0 +1,22 @@
+{
+  "name": "haivanship",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "dev:board": "vite build -c vite.board.config.mjs --watch",
+    "build": "node tools/build-data.js && npm run build:board && vite build",
+    "build:board": "vite build -c vite.board.config.mjs",
+    "preview": "vite preview",
+    "data": "node tools/build-data.js"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^6.3.4",
+    "antd": "^6.6.5",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.1",
+    "vite": "^8.3.1"
+  }
+}

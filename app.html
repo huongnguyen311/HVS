@@ -10,16 +10,35 @@
   <script>
     // Any signed-in session is enough; otherwise go back to the login page.
     try {
-      if (!(localStorage.getItem('hvs_clone_user') || sessionStorage.getItem('hvs_clone_user'))) location.replace('index.html');
-    } catch (e) { location.replace('index.html'); }
+      if (!(localStorage.getItem('hvs_clone_user') || sessionStorage.getItem('hvs_clone_user'))) location.replace('login.html');
+    } catch (e) { location.replace('login.html'); }
+    // Design picked on index.html: 'desktop' renders the desktop layout full-window (app.js reads the same key).
+    var hvsView = '';
+    try {
+      var qv = new URLSearchParams(location.search).get('view');
+      if (qv === 'desktop' || qv === 'mobile') sessionStorage.setItem('hvs_view', qv);
+      hvsView = sessionStorage.getItem('hvs_view') || '';
+    } catch (e) { /* storage blocked */ }
+    if (hvsView === 'desktop' && window.top === window.self) document.documentElement.className += ' desk-mode';
+    // Mobile design, wider than a phone and not already inside the frame: show the app in device.html's iPhone frame.
+    else if (window.top === window.self && window.innerWidth > 480) {
+      location.replace('device.html?src=' + encodeURIComponent('app.html' + location.hash));
+    }
   </script>
   <link rel="stylesheet" href="assets/hvs/app.css" />
+  <link rel="stylesheet" href="assets/hvs/board.css" />
+  <link rel="stylesheet" href="assets/hvs/pricing.css" />
+  <link rel="stylesheet" href="assets/board/board.css" />
 </head>
 
 <body>
   <div id="app"></div>
   <div id="overlay-root"></div>
   <script src="assets/hvs/data.js"></script>
+  <script src="assets/hvs/board.js"></script>
+  <script src="assets/hvs/pricing.js"></script>
+  <!-- Plan board (React + antd), built from src/board by `npm run build:board`. -->
+  <script src="assets/board/board.js"></script>
   <script src="assets/hvs/app.js"></script>
 </body>
 

@@ -3,3 +3,5 @@
 .remember/
 legacy/
 node_modules/
+dist/
+.vercel/

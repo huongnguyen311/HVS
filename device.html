@@ -187,10 +187,44 @@
       background: #000;
       pointer-events: none;
     }
+
+    /* ---------- design switch (outside the phone, so the device UI stays as it is) ---------- */
+    .view-switch {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 10;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      height: 38px;
+      padding: 0 16px 0 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 19px;
+      background: #fff;
+      color: #111827;
+      font: 600 14px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      cursor: pointer;
+    }
+
+    .view-switch:hover {
+      border-color: #1463ff;
+      color: #1463ff;
+    }
+
+    .view-switch svg {
+      width: 18px;
+      height: 18px;
+    }
   </style>
 </head>
 
 <body>
+  <button type="button" class="view-switch" id="view-switch" title="Open the same screen in the desktop design">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="12.5" rx="1.5" /><path d="M8 20h8M12 16.5V20" /></svg>
+    Desktop design
+  </button>
   <div class="stage" id="stage">
     <div class="phone" role="img" aria-label="iPhone 14 preview">
       <span class="btn left silent"></span>
@@ -223,7 +257,7 @@
           </span>
         </div>
 
-        <iframe class="app" id="app" src="index.html" title="HVS app"></iframe>
+        <iframe class="app" id="app" src="login.html" title="HVS app"></iframe>
         <span class="home-indicator"></span>
       </div>
     </div>
@@ -233,6 +267,10 @@
     const stage = document.getElementById('stage');
     const app = document.getElementById('app');
     const clock = document.getElementById('clock');
+
+    // app.html sends wide screens here as device.html?src=app.html#/route; only our own pages are allowed.
+    const src = new URLSearchParams(location.search).get('src');
+    if (src && /^(app|login)\.html(#.*)?$/.test(src)) app.src = src;
 
     // Fit the whole device in the window, never upscaling past 1:1.
     function fit() {
@@ -267,7 +305,21 @@
       statusBar.querySelectorAll('svg').forEach((svg) => { svg.style.filter = e.data.bg === '#000000' ? 'invert(1)' : ''; });
     });
     app.addEventListener('load', () => {
-      if (!/app.html/.test(app.contentWindow.location.pathname)) statusBar.style.backgroundColor = '#fff';
+      let path = app.getAttribute('src') || '';
+      try { path = app.contentWindow.location.pathname; } catch (e) { /* cross-origin (file://): fall back to src */ }
+      if (!/app.html/.test(path)) statusBar.style.backgroundColor = '#fff';
+    });
+
+    // Open the screen the phone is on in the desktop design (index.html's other option).
+    document.getElementById('view-switch').addEventListener('click', () => {
+      let page = app.getAttribute('src') || 'login.html';
+      try {
+        const l = app.contentWindow.location;
+        page = l.pathname.split('/').pop() + l.hash;
+      } catch (e) { /* cross-origin (file://): fall back to src */ }
+      const m = /^(app|login)\.html(#.*)?$/.exec(page) || ['', 'login', ''];
+      try { sessionStorage.setItem('hvs_view', 'desktop'); } catch (e) { /* the query string carries it */ }
+      location.href = m[1] + '.html?view=desktop' + (m[2] || '');
     });
 
     window.addEventListener('resize', fit);

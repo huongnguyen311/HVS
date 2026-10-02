@@ -1,0 +1,1513 @@
+/* antd Table styled with the board's values from assets/hvs/board.css (.bh / .bc / .b-sec / .bt).
+   antd injects its CSS-in-JS after this file with higher specificity, hence the .pb-table prefix
+   and !important on backgrounds. */
+
+.pb-table {
+  --pb-h: 40px;
+}
+
+.pb-table.compact {
+  --pb-h: 36px;
+}
+
+.pb-table .ant-table {
+  border-radius: 0;
+  background: #fff;
+  font-size: 11.5px;
+  color: #111827;
+}
+
+.pb-table .ant-table-container,
+.pb-table .ant-table-header,
+.pb-table .ant-table-title {
+  border-radius: 0 !important;
+}
+
+.pb-table .ant-table-title {
+  padding: 0;
+}
+
+.pb-table .ant-table-body {
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+}
+
+/* ---------- header (.bh) ---------- */
+
+/* Breathing room between the legend bar and the column titles. */
+.pb-wrap {
+  padding-top: 10px;
+}
+
+/* Column titles (PORT, STATUS, …): small caps-style labels, tracked out, vertically centred. */
+.pb-table .ant-table-thead > tr > th {
+  height: 44px;
+  padding: 0 8px;
+  border-radius: 0 !important;
+  border-top: 1px solid #e5e7eb;
+  border-right: 1px solid #eef0f3;
+  border-bottom: 1px solid #d1d5db;
+  background: #f6f7f9 !important;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  color: #4b5563;
+  white-space: nowrap;
+}
+
+.pb-table .ant-table-thead > tr > th::before {
+  display: none;
+}
+
+.pb-table .ant-table-thead > tr > th.pb-c-pobIn {
+  background: #ffff00 !important;
+  color: #4a4000;
+}
+
+.pb-table .ant-table-thead > tr > th.pb-c-pobOut {
+  background: #92d050 !important;
+  color: #1f3d00;
+}
+
+/* ---------- cells (.bc) ---------- */
+
+.pb-table .ant-table-tbody > tr > td {
+  height: var(--pb-h);
+  padding: 0 6px;
+  border-right: 1px solid rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  background: var(--pb-tint, #fff) !important;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pb-table td .t {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pb-table td.pb-c-vessel {
+  font-weight: 700;
+}
+
+.pb-table .ant-table-tbody > tr > td.pb-alert {
+  color: #b91c1c;
+  background: #fee2e2 !important;
+}
+
+/* Possible duplicate ticket (same vessel, same POB): orange, never the red "not recognised" alert. */
+.pb-table .ant-table-tbody > tr > td.pb-twin {
+  color: #9a3412;
+  background: #ffedd5 !important;
+}
+
+.pb-twin-t {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.pb-twin-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.pb-twin-tag {
+  flex: none;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 3px;
+  background: #ea580c;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  color: #fff;
+  cursor: pointer;
+}
+
+.pb-table .ant-table-tbody > tr.pb-flash > td {
+  animation: pb-flash 1.6s ease-out;
+}
+
+@keyframes pb-flash {
+  0%,
+  40% {
+    box-shadow: inset 0 0 0 999px rgba(234, 88, 12, 0.28);
+  }
+  100% {
+    box-shadow: inset 0 0 0 999px rgba(234, 88, 12, 0);
+  }
+}
+
+/* All columns read left-aligned; a merged PORT cell shows its port at the top of the group.
+   (Scoped to trip rows: section and new-ticket rows span the board from the PORT cell.) */
+.pb-table tr.pb-row > td.pb-c-port {
+  padding-top: 11px;
+  vertical-align: top;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+}
+
+.pb-table tr.pb-row > td.pb-c-port:not([rowspan]),
+.pb-table tr.pb-row > td.pb-c-port[rowspan="1"] {
+  padding-top: 0;
+  vertical-align: middle;
+}
+
+.pb-table tr.pb-row > td.pb-c-status {
+  text-align: left;
+}
+
+.pb-table td.pb-c-status .spill + .hpill {
+  margin-left: 4px;
+}
+
+.pb-table td.pb-c-pobIn,
+.pb-table td.pb-c-pobOut {
+  font-weight: 700;
+}
+
+.pb-table td .signed-t {
+  padding: 1px 3px;
+  border: 1.5px solid #1463ff;
+  border-radius: 3px;
+}
+
+.pb-table td .ok {
+  margin-left: 4px;
+  font-style: normal;
+  font-weight: 800;
+  color: #1463ff;
+}
+
+.pb-table td.pb-c-note {
+  color: #374151;
+}
+
+.pb-table td.pb-c-actions {
+  padding: 0;
+  text-align: left;
+}
+
+.pb-act {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+}
+
+/* ---------- section and empty rows (.b-sec, .b-empty) ---------- */
+
+/* The band spans the whole board, so its label (.b-sec-label, sticky) needs a visible overflow
+   to stay at the left edge while the timeline scrolls. */
+.pb-table .ant-table-tbody > tr.pb-sec > td,
+.pb-table .ant-table-tbody > tr.pb-empty > td {
+  overflow: visible;
+}
+
+.pb-table .ant-table-tbody > tr.pb-empty > td .pb-empty-t {
+  position: sticky;
+  left: 0;
+  display: inline-block;
+  width: 390px;
+}
+
+.pb-table .ant-table-tbody > tr.pb-sec > td {
+  height: 30px;
+  padding: 0;
+  border-right: 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+}
+
+.pb-table .ant-table-tbody > tr.pb-empty > td {
+  height: 36px;
+  text-align: left;
+  color: #6b7280;
+}
+
+.pb-table .pb-empty-t {
+  text-align: center;
+}
+
+/* ---------- closed trips: faded; cancelled and not-valid ones struck through ---------- */
+
+.pb-table tr.pb-term > td:not(.pb-c-port):not(.pb-c-timeline):not(.pb-c-actions) > * {
+  opacity: 0.55;
+}
+
+.pb-table tr.pb-struck > td:not(.pb-c-port):not(.pb-c-timeline):not(.pb-c-actions) {
+  text-decoration: line-through;
+}
+
+/* ---------- timeline column (.bt) ---------- */
+
+.pb-table .ant-table-thead > tr > th.pb-c-timeline {
+  padding: 0;
+  vertical-align: top;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.pb-table .ant-table-tbody > tr > td.pb-c-timeline {
+  padding: 0;
+  border-right: 0;
+  border-bottom: 0;
+  overflow: visible;
+}
+
+.pb-table td.pb-c-timeline .bt {
+  height: var(--pb-h);
+  /* Blocks stack among themselves (catalogue stack order) but never above the frozen VESSEL column. */
+  isolation: isolate;
+}
+
+/* Realtime flash (.b-row.flash). */
+.pb-table tr.pb-flash > td {
+  animation: bflash 1.6s ease-out;
+}
+
+
+/* ---------- section bands, alerts, notes ---------- */
+
+.pb-table .ant-table-tbody > tr.pb-sec.pending > td {
+  cursor: default;
+}
+
+.pb-alert-t {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  cursor: pointer;
+  font-weight: 700;
+  color: #b91c1c;
+}
+
+.pb-alert-t .t {
+  min-width: 0;
+}
+
+.pb-table td.pb-c-note .pb-note {
+  display: flex;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.pb-edited {
+  flex: none;
+  margin-right: 3px;
+  font-style: normal;
+  color: #6b7280;
+}
+
+/* ---------- board windows (Ticket actions, Notes, Add service, Assign tugboat) ---------- */
+
+/* The window's name leads: larger and heavier than anything in the body, ruled off from it. */
+.ant-modal .ant-modal-header {
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.ant-modal .ant-modal-title {
+  padding-right: 28px;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 26px;
+  color: #111827;
+}
+
+.ant-modal-confirm .ant-modal-confirm-title,
+.ant-popconfirm .ant-popconfirm-title,
+.ant-popover .ant-popover-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.pbm-head b {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pbm-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 14px;
+}
+
+.pbm-head > span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.pbm-label {
+  display: block;
+  margin: 12px 0 5px;
+  font-size: 12.5px;
+  color: #6b7280;
+}
+
+.pbm-label.sm {
+  margin-top: 4px;
+}
+
+.pbm-sub {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: #6b7280;
+}
+
+.pbm-hint {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.pbm-field {
+  min-width: 0;
+}
+
+.pbm-pre {
+  color: #9ca3af;
+}
+
+/* Ticket actions: summary on top, then one titled group per topic */
+.pbm-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f5f7fa;
+}
+
+.pbm-hero-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pbm-hero-main b {
+  font-size: 15px;
+}
+
+.pbm-hero-main span {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.pbm-sec {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #eef0f3;
+}
+
+.pbm-sec-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 10px;
+}
+
+.pbm-sec-head h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #374151;
+}
+
+.pbm-sec-note {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.pbm-fhint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.pbm-facts {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: #111827;
+}
+
+.pbm-form {
+  margin-top: 4px;
+}
+
+.pbm-lock {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: #6b7280;
+}
+
+.pbm-savebar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* Full modal width, lifted off the screen edge (plus the phone's home-bar inset). */
+  margin: 16px -24px -20px;
+  padding: 12px 24px calc(20px + env(safe-area-inset-bottom));
+  border-top: 1px solid #eef0f3;
+  border-radius: 0 0 8px 8px;
+  background: #fff;
+  box-shadow: 0 -6px 16px rgba(15, 23, 42, 0.06);
+}
+
+.pbm-bar-mod {
+  width: 100%;
+}
+
+/* Not valid · Save · Confirm/Done: three equal columns, primary on the right */
+.pbm-bar-btns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+/* 40px tall: easier to hit on a phone */
+.pbm-bar-btns .ant-btn,
+.pbm-bar-mod.ant-select {
+  width: 100%;
+  height: 40px;
+}
+
+/* POB time · date: two compact pickers */
+.pob-in.pob-time {
+  flex: 0 0 72px;
+}
+
+.pob-in.pob-date {
+  flex: 1 1 130px;
+  min-width: 0;
+}
+
+/* "not found" fixer, one compact card: header · [use existing ▾][Update] · or + Create "…" */
+.pbm-unrec {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #ffccc7;
+  border-radius: 8px;
+  background: #fff2f0;
+}
+
+.pbm-unrec-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pbm-unrec-head > .anticon {
+  font-size: 15px;
+  color: #ff4d4f;
+}
+
+.pbm-unrec-use {
+  margin-top: 8px;
+}
+
+.pbm-unrec-new {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 4px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.pbm-unrec-new .ant-btn {
+  padding-inline: 2px;
+}
+
+.pbm-unrec-new small {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.pbm-alert {
+  margin-top: 14px;
+}
+
+.pbm-svcs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pbm-svc {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  cursor: pointer;
+  background: #fff;
+  font-size: 13px;
+  text-align: left;
+  color: #374151;
+}
+
+.pbm-svc > span {
+  flex: 1;
+  min-width: 0;
+}
+
+.pbm-svc em {
+  flex: none;
+  font-style: normal;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.pbm-svc.off {
+  opacity: 0.55;
+}
+
+.pbm-win {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pbm-win > .ant-picker {
+  flex: 1;
+  min-width: 200px;
+}
+
+.pbm-err {
+  display: block;
+  margin-top: 4px;
+  font-size: 12.5px;
+}
+
+.pbm-svc.on em {
+  color: inherit;
+}
+
+/* Tugboat picker: picked strip, search, and one folding section per location. */
+.pbm-picked {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 4px 6px;
+  border: 1px dashed #d1d5db;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.pbm-picked .ant-tag {
+  margin: 0;
+  font-weight: 600;
+}
+
+.pbm-boatbar {
+  margin: 8px 0 2px;
+}
+
+.pbm-boatbar .ant-checkbox-wrapper {
+  flex: none;
+  font-size: 12.5px;
+}
+
+.pbm-fleet {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.pbm-loc {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  width: 100%;
+  padding: 9px 2px;
+  border: 0;
+  background: none;
+  font-size: 13px;
+  text-align: left;
+  color: #1f2937;
+  cursor: pointer;
+}
+
+.pbm-loc .chev {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin: 0 3px;
+  border-right: 1.5px solid #6b7280;
+  border-bottom: 1.5px solid #6b7280;
+  transform: rotate(45deg);
+  transition: transform 0.15s;
+}
+
+.pbm-loc.shut .chev {
+  transform: rotate(-45deg);
+}
+
+.pbm-loc > b {
+  flex: none;
+}
+
+.pbm-loc > span {
+  flex: none;
+  margin-left: auto;
+  font-size: 12px;
+  white-space: nowrap;
+  color: #6b7280;
+}
+
+.pbm-loc em {
+  font-style: normal;
+}
+
+.pbm-loc em.on {
+  font-weight: 600;
+  color: #1677ff;
+}
+
+.pbm-home {
+  flex: none;
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 16px;
+}
+
+.pbm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
+  gap: 6px;
+  padding-bottom: 8px;
+}
+
+.pbm-grid > .ant-typography {
+  grid-column: 1 / -1;
+  font-size: 12.5px;
+}
+
+.pbm-boat {
+  height: 28px;
+  padding: 0 4px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: #1f2937;
+  cursor: pointer;
+}
+
+.pbm-boat.busy {
+  border-style: dashed;
+  border-color: #fdba74;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.pbm-boat.on {
+  border: 1px solid #1677ff;
+  background: #1677ff;
+  color: #fff;
+}
+
+.pbm-boat.on.clash {
+  border-color: #cf1322;
+  background: #cf1322;
+  color: #fff;
+}
+
+.pbm-boat:disabled {
+  border-style: solid;
+  border-color: #e5e7eb;
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.pbm-more {
+  display: block;
+  margin: -2px 0 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 12.5px;
+  color: #1677ff;
+  cursor: pointer;
+}
+
+.pbm-kind {
+  margin-inline-end: 4px;
+}
+
+.pbm-check {
+  margin-top: 14px;
+}
+
+/* ---------- swipe navigation: frozen VESSEL + snap points ----------
+   VESSEL sticks to the left edge once the swipe reaches it, so every timeline row keeps its ship.
+   The body snaps (proximity: free scrolling, a swipe that ends near a point settles on it) to each
+   info column and to every 3 hours of the timeline, just right of the frozen column. */
+
+.pb-table .ant-table-body {
+  scroll-snap-type: x proximity;
+}
+
+/* antd sets header cells to position: relative with a stronger selector, hence !important. */
+.pb-table .ant-table-thead > tr > th.pb-c-vessel,
+.pb-table tr.pb-row > td.pb-c-vessel {
+  position: sticky !important;
+  left: 0;
+  z-index: 4;
+  box-shadow: 3px 0 6px -3px rgba(0, 0, 0, 0.22);
+}
+
+.pb-table tr.pb-row > td:not(.pb-c-timeline):not(.pb-c-actions) {
+  scroll-snap-align: start;
+}
+
+/* Columns right of VESSEL (and the timeline marks) settle beside it, not under it. */
+.pb-table tr.pb-row > td.pb-c-vessel ~ td:not(.pb-c-timeline) {
+  scroll-margin-left: var(--vessel-w);
+}
+
+.bsnap {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+  scroll-snap-align: start;
+  scroll-margin-left: var(--vessel-w);
+}
+
+/* The day label stays readable beside the frozen VESSEL column. */
+.pb-table .bh-days b {
+  left: var(--vessel-w);
+}
+
+/* One-line legend (swatches + short names); the whole row opens the full key. */
+.bbar button.blegend {
+  width: 100%;
+  justify-content: flex-start;
+  gap: 10px;
+  overflow: hidden;
+  font-size: 11px;
+  color: #374151;
+  text-align: left;
+}
+
+.bsw {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.bsw i {
+  width: 10px;
+  height: 10px;
+  border: 1px solid;
+  border-radius: 2px;
+}
+
+.bsw i.dashed {
+  border: 1px dashed #6b7280;
+  background: #fff;
+}
+
+.bsw u {
+  text-decoration-color: #dc2626;
+  text-decoration-thickness: 2px;
+}
+
+.blegend-q {
+  margin-left: auto;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* Legend popover: sized for the phone (16px gutters), services in two columns, marks as a key / meaning list. */
+.blegend-pop {
+  left: 16px !important;
+  width: calc(100vw - 32px);
+  max-width: none;
+}
+
+.blegend-pop .ant-popover-arrow {
+  display: none;
+}
+
+.blegend-pop .ant-popover-inner {
+  padding: 12px;
+}
+
+.blegend-pop .ant-popover-title {
+  margin-bottom: 6px;
+}
+
+.blegend-help {
+  width: 100%;
+  font-size: 12px;
+  line-height: 16px;
+  color: #374151;
+}
+
+.blegend-help h5 {
+  margin: 8px 0 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.blegend-help h5:first-child {
+  margin-top: 0;
+}
+
+.blegend-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 10px;
+}
+
+.blegend-grid > div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.blegend-grid i {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border: 1px solid;
+  border-radius: 3px;
+}
+
+.blegend-grid span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.blegend-marks {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 5px 8px;
+}
+
+.blegend-marks > :nth-child(odd) {
+  justify-self: start;
+}
+
+/* ---------- filter button (beside the gear) and the Filters sheet ---------- */
+
+.bfilter {
+  position: relative;
+  font-size: 15px;
+}
+
+.bfilter.on {
+  border-color: #1463ff;
+  color: #1463ff;
+}
+
+.bfilter b {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #1463ff;
+  font-size: 10px;
+  line-height: 16px;
+  color: #fff;
+}
+
+.fs-field {
+  display: block;
+}
+
+/* The toolbar buttons keep their 32px; the date window gives way first. */
+.bbar .bgear,
+.bbar .bai {
+  flex: none;
+}
+
+.fs-field {
+  flex: 1;
+  min-width: 0;
+}
+
+/* New ticket: the app's green + (same size and colour as on the tickets and admin screens). */
+.pb-fab {
+  right: 15px;
+  bottom: 47px;
+  font-size: 22px;
+}
+
+/* ---------- Phase 4 scope: background strips, requested services, filter chips, hold, override ---------- */
+
+/* Background services (salvage, standby on duty): a strip behind the blocks, labelled on each day. */
+.bband span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bband u {
+  text-decoration-color: #dc2626;
+  text-decoration-thickness: 2px;
+}
+
+.bband.contl {
+  border-left-style: dashed;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.bband.contr {
+  border-right-style: dashed;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.bband.dim {
+  opacity: 0.4;
+}
+
+/* A service the ticket asked for that has no tugboat yet. */
+/* The connection pill is a button (demo: tap to drop the connection). */
+/* One chip per active filter, under the toolbar. */
+.bbar .bchips {
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.bchip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 4px 0 9px;
+  border: 1px solid #93b4ff;
+  border-radius: 12px;
+  background: #eff4ff;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #1463ff;
+  white-space: nowrap;
+}
+
+.bchip button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 9px;
+  color: #1463ff;
+}
+
+.bchip-all {
+  flex: none;
+  padding: 0 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.cfg-title .cfg-clear {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1463ff;
+}
+
+.fs-field.invalid .svc-chips .svc-chip {
+  border-color: #fca5a5;
+}
+
+.pbm-signed {
+  flex: none;
+  font-size: 12.5px;
+}
+
+.pbm-label .req {
+  color: #dc2626;
+}
+
+.pbm-history {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: #4b5563;
+}
+
+/* ---------- pickers with context (A4), vessel tag and special case (P6) ---------- */
+
+.pb-opt {
+  display: block;
+  line-height: 16px;
+}
+
+.pb-opt b {
+  display: block;
+  font-weight: 600;
+}
+
+.pb-opt small {
+  display: block;
+  font-size: 11px;
+  color: #6b7280;
+  white-space: normal;
+}
+
+.pb-vtag {
+  flex: none;
+  margin-left: 4px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: #1e3a8a;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  color: #fff;
+}
+
+.pbm-special {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px dashed #d1d5db;
+  border-radius: 10px;
+  background: #fafafa;
+}
+.pbm-special-title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+
+/* AutoComplete echoes the matched option's two-line label behind the input; keep the field one line high. */
+.ant-select-auto-complete .ant-select-content > .pb-opt {
+  position: absolute;
+  visibility: hidden;
+}
+
+.ant-select-auto-complete .ant-select-content {
+  min-height: 22px;
+}
+
+.pbm-status-now {
+  margin-top: 8px;
+}
+
+.pb-table td.pb-click {
+  cursor: pointer;
+}
+
+.pb-table td.pb-click:hover {
+  box-shadow: inset 0 0 0 2px #1463ff;
+}
+
+/* ---------- AI suggest: toolbar button, review bar, dashed suggestion blocks ---------- */
+.bai {
+  flex: none;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid #c4b5fd;
+  border-radius: 8px;
+  background: #f5f3ff;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #6d28d9;
+  cursor: pointer;
+}
+
+.bt .bsug {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  overflow: hidden;
+  border: 2px dashed #7c3aed;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--sbg) 45%, #fff);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  animation: bsug-in 0.25s ease-out;
+}
+
+.bt .bsug span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@keyframes bsug-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+.bsug-pop {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 260px;
+  font-size: 12.5px;
+}
+
+.bsug-pop ul {
+  margin: 2px 0;
+  padding-left: 16px;
+  color: #4b5563;
+}
+
+.bsug-pop i {
+  color: #6b7280;
+}
+
+/* "+N more" on the legend bar: opens the full legend popover. */
+.blegend-more {
+  flex: none;
+  margin-left: auto;
+  padding: 0 8px;
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+  background: #eef2ff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  color: #1463ff;
+}
+
+/* Long windows (Assign tugboat, Add service): the footer buttons stay on screen while the body scrolls. */
+.pbm-sticky .ant-modal-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin: 16px -24px -20px;
+  padding: 12px 24px calc(16px + env(safe-area-inset-bottom));
+  border-top: 1px solid #eef0f3;
+  border-radius: 0 0 8px 8px;
+  background: #fff;
+  box-shadow: 0 -6px 16px rgba(15, 23, 42, 0.06);
+}
+
+/* ---------- popup buttons: one pattern everywhere ----------
+   A single row at the bottom, equal widths, 40px pill buttons; destructive (outlined red) first,
+   Cancel (outlined) next, the primary action last on the right. Same as the app's dialogs and sheets. */
+.ant-modal .ant-modal-footer {
+  display: flex;
+  gap: 10px;
+}
+
+.ant-modal .ant-modal-footer .ant-btn,
+.pbm-bar-btns .ant-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 40px;
+  margin: 0 !important;
+  border-radius: 20px;
+  font-size: 14.5px;
+  font-weight: 500;
+}
+
+.ant-modal .ant-modal-footer .ant-btn-default:not(.ant-btn-dangerous),
+.pbm-bar-btns .ant-btn-default:not(.ant-btn-dangerous) {
+  border-color: #d1d5db;
+  color: #111827;
+}
+
+/* VESSEL name: click opens the fuel figure; ⛽ marks a ticket that has one. */
+.pb-vessel {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.pb-vessel.on {
+  cursor: pointer;
+}
+
+.pb-vessel.on:hover .t {
+  color: #1463ff;
+  text-decoration: underline;
+}
+
+.pb-fuel {
+  flex: none;
+  margin-left: 3px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+/* Tap card on PORT / VESSEL / AGENCY cells (inside the Tip modal). */
+.pb-info {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.pb-info > b {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.pb-info dl {
+  margin: 0;
+}
+
+.pb-info dl > div {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 3px 0;
+}
+
+.pb-info dt {
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.pb-info dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+}
+
+.pb-info small {
+  display: block;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.5);
+  font-size: 12px;
+}
+
+/* Tip: a tap on a board mark opens its details in a small modal (hover never fires on a phone). */
+.tip-tap {
+  cursor: pointer;
+}
+
+.tip-body {
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.tip-notes b {
+  display: block;
+  font-weight: 600;
+}
+
+.tip-notes small {
+  display: block;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+}
+
+.tip-notes p {
+  margin: 2px 0 10px;
+  white-space: pre-wrap;
+}
+
+.tip-notes p:last-child {
+  margin-bottom: 0;
+}
+
+/* ---------- History (D4): the board's closed tickets, same table without the timeline ---------- */
+
+.hbar .bbar-row {
+  height: 52px;
+}
+
+.hbar .hsearch {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  margin: 0;
+  border: 1px solid #e5e7eb;
+  box-shadow: none;
+  background: #f9fafb;
+}
+
+.hbar .hsearch input {
+  font-size: 14px;
+}
+
+.hbar .bfilter {
+  flex: none;
+  width: 36px;
+  height: 36px;
+}
+
+.hbar .hchips {
+  height: auto;
+  padding: 0 12px 10px;
+}
+
+.hist-note {
+  padding: 8px 12px 0;
+  font-size: 11.5px;
+  color: #6b7280;
+}
+
+.hist-err {
+  margin-top: -4px;
+  font-size: 12.5px;
+  color: #dc2626;
+}
+
+/* No vertical scroll box: the page scrolls, the table only swipes sideways (antd's .ant-table-content). */
+.pb-hist .ant-table-content {
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+}
+
+.pb-hist .ant-table-tbody > tr.pb-row {
+  cursor: pointer;
+}
+
+.pb-hist .ant-table-thead > tr > th.ant-table-column-has-sorters:hover {
+  background: #eef0f3 !important;
+}
+
+.pb-hist .ant-table-thead > tr > th.pb-c-pobIn.ant-table-column-has-sorters:hover {
+  background: #f0f000 !important;
+}
+
+.pb-hist .ant-table-thead > tr > th.pb-c-pobOut.ant-table-column-has-sorters:hover {
+  background: #86c445 !important;
+}
+
+.pb-hist .ant-table-column-sorters {
+  gap: 4px;
+}
+
+.pb-hist .ant-table-column-sorter {
+  font-size: 9px;
+}
+
+.hist-svcs {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.hist-svcs i {
+  padding: 0 5px;
+  border: 1px solid;
+  border-radius: 3px;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 16px;
+}
+
+.hist-empty {
+  display: block;
+  padding: 28px 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.pb-hist .ant-pagination {
+  margin: 14px 12px 28px !important;
+}
+
+/* D1: realtime connection dot beside the dates (green live, red offline). */
+.blive {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 32px;
+  margin-left: -2px;
+}
+
+.blive i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+}
+
+.blive.off i {
+  background: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+/* Audit 02/10 · History service tags were 10px. */
+.hist-svcs i {
+  font-size: 11px;
+}
+
+/* §12: a MOD may see fewer status buttons (e.g. only Save on an updated ticket): the row splits equally
+   among however many there are. */
+.pbm-bar-btns {
+  grid-template-columns: none;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+}
+
+.pbm-bar-note {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12.5px;
+  color: #b45309;
+}

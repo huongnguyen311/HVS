@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#1976d2" />
+  <meta name="description" content="HVS - Order &amp; Update - Maritime service request system" />
+  <title>HVS - Order &amp; Update</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow-x: hidden;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    #root {
+      width: 100%;
+      min-height: 100%;
+    }
+
+    /* ---------- design tokens (from the live Ant Design theme) ---------- */
+    :root {
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --text: rgba(0, 0, 0, 0.88);
+      --text-secondary: rgba(0, 0, 0, 0.45);
+      --text-placeholder: rgba(0, 0, 0, 0.25);
+      --primary: #1463ff;
+      --primary-hover: #3d84ff;
+      --primary-active: #0746d9;
+      --primary-outline: #8fbfff;
+      --link: #2563eb;
+      --link-hover: #7aadff;
+      --link-active: #1647c4;
+      --border: #d9d9d9;
+      --success: #16a34a;
+      --google: #4285f4;
+    }
+
+    .app {
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.5714285714285714;
+      color: var(--text);
+    }
+
+    .app *,
+    .app *::before,
+    .app *::after {
+      box-sizing: border-box;
+    }
+
+    .shell {
+      max-width: 480px;
+      width: 100%;
+      margin: 0 auto;
+      min-height: 100vh;
+      background-color: #fff;
+    }
+
+    .center {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background-color: #fff;
+    }
+
+    /* ---------- card ---------- */
+    .card {
+      position: relative;
+      width: 100%;
+      max-width: 400px;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-body {
+      padding: 24px;
+      border-radius: 0 0 10px 10px;
+    }
+
+    .logo {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+
+    .logo img {
+      display: block;
+      max-width: 280px;
+      width: 60%;
+      height: auto;
+      vertical-align: middle;
+    }
+
+    .heading {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .heading h3 {
+      font-size: 24px;
+      line-height: 32px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: #111827;
+      margin: 0;
+      text-align: center;
+      word-break: break-word;
+    }
+
+    .field {
+      margin-bottom: 16px;
+    }
+
+    /* ---------- inputs ---------- */
+    .input,
+    .affix {
+      position: relative;
+      width: 100%;
+      min-width: 0;
+      margin: 0;
+      padding: 7px 11px;
+      font-family: var(--font);
+      font-size: 16px;
+      line-height: 1.5;
+      color: var(--text);
+      background-color: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      transition: all 0.2s;
+    }
+
+    .input {
+      display: inline-block;
+      outline: none;
+    }
+
+    .input::placeholder,
+    .affix input::placeholder {
+      color: var(--text-placeholder);
+      user-select: none;
+    }
+
+    .input:placeholder-shown {
+      text-overflow: ellipsis;
+    }
+
+    .input:hover,
+    .affix:hover {
+      border-color: var(--primary-hover);
+    }
+
+    .input:focus,
+    .affix:focus-within {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(5, 125, 255, 0.1);
+      outline: 0;
+    }
+
+    .affix {
+      display: inline-flex;
+    }
+
+    .affix input {
+      flex: auto;
+      display: block;
+      width: 100%;
+      min-width: 0;
+      padding: 0;
+      font: inherit;
+      color: inherit;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      outline: none;
+    }
+
+    .affix input::-ms-reveal {
+      display: none;
+    }
+
+    .suffix {
+      display: flex;
+      flex: none;
+      align-items: center;
+      margin-inline-start: 4px;
+    }
+
+    .eye {
+      display: inline-flex;
+      align-items: center;
+      line-height: 0;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .eye:hover {
+      color: var(--text);
+    }
+
+    .eye svg {
+      display: inline-block;
+    }
+
+    .eye svg[hidden] {
+      display: none;
+    }
+
+    /* ---------- checkbox ---------- */
+    .checkbox-wrapper {
+      display: inline-flex;
+      align-items: baseline;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1.5714285714285714;
+      color: var(--text);
+    }
+
+    .checkbox {
+      position: relative;
+      display: block;
+      align-self: center;
+      white-space: nowrap;
+      line-height: 1;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .checkbox input {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .checkbox-inner {
+      display: block;
+      width: 16px;
+      height: 16px;
+      direction: ltr;
+      background-color: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      border-collapse: separate;
+      transition: all 0.3s;
+    }
+
+    .checkbox-inner::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      inset-inline-start: 25%;
+      display: table;
+      width: 5.7142857142857135px;
+      height: 9.142857142857142px;
+      border: 2px solid #fff;
+      border-top: 0;
+      border-inline-start: 0;
+      transform: rotate(45deg) scale(0) translate(-50%, -50%);
+      opacity: 0;
+      transition: all 0.1s cubic-bezier(0.71, -0.46, 0.88, 0.6), opacity 0.1s;
+    }
+
+    .checkbox input:checked + .checkbox-inner {
+      background-color: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .checkbox input:checked + .checkbox-inner::after {
+      opacity: 1;
+      transform: rotate(45deg) scale(1) translate(-50%, -50%);
+      transition: all 0.2s cubic-bezier(0.12, 0.4, 0.29, 1.46) 0.1s;
+    }
+
+    .checkbox-wrapper:hover .checkbox-inner {
+      border-color: var(--primary);
+    }
+
+    .checkbox-wrapper:hover .checkbox input:checked + .checkbox-inner {
+      background-color: var(--primary-hover);
+      border-color: transparent;
+    }
+
+    .checkbox input:focus-visible + .checkbox-inner {
+      outline: 3px solid var(--primary-outline);
+      outline-offset: 1px;
+      transition: outline-offset 0s, outline 0s;
+    }
+
+    .checkbox-label {
+      padding-inline: 8px;
+    }
+
+    /* ---------- buttons ---------- */
+    .btn {
+      position: relative;
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 32px;
+      padding: 0 15px;
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 400;
+      white-space: nowrap;
+      text-align: center;
+      color: var(--text);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      outline: none;
+      cursor: pointer;
+      user-select: none;
+      touch-action: manipulation;
+      transition: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+    }
+
+    .btn:focus-visible {
+      outline: 3px solid var(--primary-outline);
+      outline-offset: 1px;
+      transition: outline-offset 0s, outline 0s;
+    }
+
+    .btn-lg {
+      height: 40px;
+      font-size: 16px;
+      border-radius: 10px;
+    }
+
+    .anticon {
+      display: inline-flex;
+      align-items: center;
+      line-height: 0;
+      vertical-align: -0.125em;
+    }
+
+    .btn-login {
+      margin: 8px 0;
+      color: #fff;
+      background-color: var(--success);
+      border-color: var(--success);
+      box-shadow: 0 2px 0 rgba(5, 125, 255, 0.1);
+    }
+
+    .btn-google {
+      margin-bottom: 16px;
+      color: var(--google);
+      background: #fff;
+      border-color: var(--google);
+      box-shadow: 0 2px 0 rgba(0, 0, 0, 0.02);
+    }
+
+    .btn-text:hover {
+      background: rgba(0, 0, 0, 0.04);
+    }
+
+    .btn-text:active {
+      background: rgba(0, 0, 0, 0.15);
+    }
+
+    .btn-forgot {
+      margin-bottom: 4px;
+      color: var(--primary);
+    }
+
+    .btn-request {
+      color: #6b7280;
+    }
+
+    /* click wave, as in Ant Design */
+    .wave {
+      position: absolute;
+      inset: -1px;
+      border-radius: inherit;
+      pointer-events: none;
+      color: var(--wave-color, var(--primary));
+      box-shadow: 0 0 0 0 currentColor;
+      opacity: 0.2;
+      animation: wave 0.4s cubic-bezier(0.08, 0.82, 0.17, 1), wave-fade 2s cubic-bezier(0.08, 0.82, 0.17, 1);
+      animation-fill-mode: forwards;
+    }
+
+    @keyframes wave {
+      to { box-shadow: 0 0 0 6px currentColor; }
+    }
+
+    @keyframes wave-fade {
+      to { opacity: 0; }
+    }
+
+    /* ---------- divider ---------- */
+    .or {
+      text-align: center;
+      margin: 20px 0;
+      position: relative;
+    }
+
+    .or::before {
+      content: "";
+      border-top: 1px solid var(--border);
+      position: absolute;
+      left: 0;
+      width: 100%;
+      top: 50%;
+      z-index: 0;
+    }
+
+    .or span {
+      background: #fff;
+      padding: 0 16px;
+      position: relative;
+      z-index: 1;
+      color: #8c8c8c;
+    }
+
+    /* ---------- legal ---------- */
+    .legal {
+      text-align: center;
+      margin-top: 16px;
+      border-top: 1px solid #f0f0f0;
+      padding-top: 16px;
+    }
+
+    .legal-text {
+      font-size: 12px;
+      color: var(--text-secondary);
+      word-break: break-word;
+    }
+
+    .legal a {
+      font-size: 12px;
+      color: var(--link);
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .legal a:hover,
+    .legal a:focus {
+      color: var(--link-hover);
+    }
+
+    .legal a:active {
+      color: var(--link-active);
+    }
+  </style>
+</head>
+
+<body>
+  <noscript>You need to enable JavaScript to run this app.</noscript>
+  <div id="root">
+    <div class="app">
+      <div class="shell">
+        <div class="center">
+          <div class="card">
+            <div class="card-body">
+              <div class="logo">
+                <img alt="HVS Group" src="assets/appicon.png" />
+              </div>
+              <div class="heading">
+                <h3>Order &amp; Update</h3>
+              </div>
+
+              <form id="login-form">
+                <div class="field">
+                  <input class="input" type="email" name="email" placeholder="Email" required autofocus />
+                </div>
+                <div class="field">
+                  <span class="affix">
+                    <input id="password" type="password" name="password" placeholder="Password" required />
+                    <span class="suffix">
+                      <span id="toggle-password" class="eye" role="img" aria-label="eye-invisible" tabindex="-1">
+                        <svg id="eye-invisible" viewBox="64 64 896 896" focusable="false" width="1em" height="1em" fill="currentColor" aria-hidden="true">
+                          <path d="M942.2 486.2Q889.47 375.11 816.7 305l-50.88 50.88C807.31 395.53 843.45 447.4 874.7 512 791.5 684.2 673.4 766 512 766q-72.67 0-133.87-22.38L323 798.75Q408 838 512 838q288.3 0 430.2-300.3a60.29 60.29 0 000-51.5zm-63.57-320.64L836 122.88a8 8 0 00-11.32 0L715.31 232.2Q624.86 186 512 186q-288.3 0-430.2 300.3a60.3 60.3 0 000 51.5q56.69 119.4 136.5 191.41L112.48 835a8 8 0 000 11.31L155.17 889a8 8 0 0011.31 0l712.15-712.12a8 8 0 000-11.32zM149.3 512C232.6 339.8 350.7 258 512 258c54.54 0 104.13 9.36 149.12 28.39l-70.3 70.3a176 176 0 00-238.13 238.13l-83.42 83.42C223.1 637.49 183.3 582.28 149.3 512zm246.7 0a112.11 112.11 0 01146.2-106.69L401.31 546.2A112 112 0 01396 512z"></path>
+                          <path d="M508 624c-3.46 0-6.87-.16-10.25-.47l-52.82 52.82a176.09 176.09 0 00227.42-227.42l-52.82 52.82c.31 3.38.47 6.79.47 10.25a111.94 111.94 0 01-112 112z"></path>
+                        </svg>
+                        <svg id="eye" viewBox="64 64 896 896" focusable="false" width="1em" height="1em" fill="currentColor" aria-hidden="true" hidden>
+                          <path d="M942.2 486.2C847.4 286.5 704.1 186 512 186c-192.2 0-335.4 100.5-430.2 300.3a60.3 60.3 0 000 51.5C176.6 737.5 319.9 838 512 838c192.2 0 335.4-100.5 430.2-300.3 7.7-16.2 7.7-35 0-51.5zM512 766c-161.3 0-279.4-81.8-362.7-254C232.6 339.8 350.7 258 512 258c161.3 0 279.4 81.8 362.7 254C791.5 684.2 673.4 766 512 766zm-4-430c-97.2 0-176 78.8-176 176s78.8 176 176 176 176-78.8 176-176-78.8-176-176-176zm0 288c-61.9 0-112-50.1-112-112s50.1-112 112-112 112 50.1 112 112-50.1 112-112 112z"></path>
+                        </svg>
+                      </span>
+                    </span>
+                  </span>
+                </div>
+                <div class="field">
+                  <label class="checkbox-wrapper">
+                    <span class="checkbox">
+                      <input type="checkbox" name="remember" checked />
+                      <span class="checkbox-inner"></span>
+                    </span>
+                    <span class="checkbox-label">Remember me</span>
+                  </label>
+                </div>
+                <button type="submit" class="btn btn-lg btn-login" data-wave="#16a34a"><span>Login</span></button>
+              </form>
+
+              <div class="or"><span>OR</span></div>
+
+              <button type="button" class="btn btn-lg btn-google" data-wave="#4285f4">
+                <span class="btn-icon"><span class="anticon" role="img" aria-label="google"><svg viewBox="64 64 896 896" focusable="false" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="M881 442.4H519.7v148.5h206.4c-8.9 48-35.9 88.6-76.6 115.8-34.4 23-78.3 36.6-129.9 36.6-99.9 0-184.4-67.5-214.6-158.2-7.6-23-12-47.6-12-72.9s4.4-49.9 12-72.9c30.3-90.6 114.8-158.1 214.7-158.1 56.3 0 106.8 19.4 146.6 57.4l110-110.1c-66.5-62-153.2-100-256.6-100-149.9 0-279.6 86-342.7 211.4-26 51.8-40.8 110.4-40.8 172.4S151 632.8 177 684.6C240.1 810 369.8 896 519.7 896c103.6 0 190.4-34.4 253.8-93 72.5-66.8 114.4-165.2 114.4-282.1 0-27.2-2.4-53.3-6.9-78.5z"></path></svg></span></span>
+                <span>Continue with Google</span>
+              </button>
+              <button type="button" class="btn btn-text btn-forgot"><span>Forgot Password?</span></button>
+              <button type="button" class="btn btn-text btn-request"><span>Need an account? Request Access</span></button>
+
+              <div class="legal">
+                <span class="legal-text">By signing in, you agree to our <a>Terms of Use</a> and <a>Privacy Policy</a></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const password = document.getElementById('password');
+    const toggle = document.getElementById('toggle-password');
+    const eyeOff = document.getElementById('eye-invisible');
+    const eyeOn = document.getElementById('eye');
+
+    // Keep the caret in the field while toggling visibility, as antd does.
+    toggle.addEventListener('mousedown', (e) => e.preventDefault());
+    toggle.addEventListener('click', () => {
+      const show = password.type === 'password';
+      password.type = show ? 'text' : 'password';
+      eyeOff.hidden = show;
+      eyeOn.hidden = !show;
+      toggle.setAttribute('aria-label', show ? 'eye' : 'eye-invisible');
+    });
+
+    document.querySelectorAll('[data-wave]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const wave = document.createElement('span');
+        wave.className = 'wave';
+        wave.style.setProperty('--wave-color', btn.dataset.wave);
+        btn.appendChild(wave);
+        setTimeout(() => wave.remove(), 2000);
+      });
+    });
+
+    // Any email/password signs in. Details of the account the snapshots came from are kept.
+    const USER_KEY = 'hvs_clone_user';
+    const KNOWN = {
+      'huong.nguyen@inapps.net': { name: 'Huong Nguyen', phone: '+84937111111', company: 'InApps' },
+    };
+
+    const nameFromEmail = (email) => email.split('@')[0]
+      .split(/[._\-+]+/)
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+
+    // index.html links here as login.html?view=desktop|mobile; app.html reads the choice back.
+    try {
+      const view = new URLSearchParams(location.search).get('view');
+      if (view === 'desktop' || view === 'mobile') sessionStorage.setItem('hvs_view', view);
+    } catch (e) { /* storage blocked */ }
+
+    try {
+      if (localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY)) location.replace('app.html#/tickets');
+    } catch (e) { /* storage blocked: stay on login */ }
+
+    document.getElementById('login-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const form = e.currentTarget;
+      const email = form.email.value.trim();
+      const known = KNOWN[email.toLowerCase()] || {};
+      const user = {
+        email,
+        name: known.name || nameFromEmail(email),
+        phone: known.phone || 'N/A',
+        company: known.company || 'N/A',
+      };
+      try {
+        (form.remember.checked ? localStorage : sessionStorage).setItem(USER_KEY, JSON.stringify(user));
+        // Demo: every sign-in picks its role again (app.js shows the role picker first).
+        sessionStorage.removeItem('hvs_demo_role');
+      } catch (err) { /* storage blocked */ }
+      location.href = 'app.html#/tickets';
+    });
+  </script>
+</body>
+
+</html>
