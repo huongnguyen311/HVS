@@ -21,17 +21,21 @@
   var subSeq = api.store('subSeq', {});
 
   var role = function () { return api.user.role; };
-  // HEAD_ACCOUNTANT / ACCOUNTANT work the ledger and export; SUPPORT_ACCOUNTANT reads it (prices included).
+  // ADMIN, HEAD_ACCOUNTANT and ACCOUNTANT work the ledger, its tables and export; SUPPORT_ACCOUNTANT views them
+  // (prices included). Nothing is ever blocked for ADMIN, and the billing status is for viewing only: it never
+  // locks a line or stops an action.
   var canWork = function () { return /^(ADMIN|HEAD_ACCOUNTANT|ACCOUNTANT)$/.test(role()); };
-  // P5 / §3: only HEAD_ACCOUNTANT and ACCOUNTANT say YES / NO to an AI split proposal (ADMIN writes the rules).
-  var canApprove = function () { return /^(HEAD_ACCOUNTANT|ACCOUNTANT)$/.test(role()); };
-  // An invoiced line is locked: no invoice customer, override or split changes.
-  var locked = function (l) { return l.status === 'invoiced'; };
+  // AI suggestions: ADMIN or an accountant accepts or declines each one.
+  var canApprove = canWork;
+  // AI split rules: ADMIN writes them; accountants view them.
+  var canRules = function () { return role() === 'ADMIN'; };
+  // Read-only tables show this instead of the Add / Edit buttons.
+  var viewOnly = function (what) { return '<p class="lg-ro">' + emoji('👁️') + 'View only · ' + what + '</p>'; };
 
   // ---------- helpers ----------
 
-  // Tooltip text that also opens on tap (app.js tap tips), since a phone has no hover.
-  var tip = function (text) { return ' title="' + esc(text) + '" data-tip="' + esc(text) + '"'; };
+  // Tooltip text: a hover bubble on desktop, a tap bubble on a phone (app.js tap tips).
+  var tip = function (text) { return ' data-tip="' + esc(text) + '"'; };
 
   var byId = function (list, id) { return list.filter(function (x) { return x.id === id; })[0] || null; };
   var cust = function (id) { return byId(P.customers, id); };
@@ -95,14 +99,28 @@
     return rows.length ? rows[0].rate : null;
   }
 
+  // 1 `from` = ? `to` on a day, through VND (the table holds X → VND rates); null when a rate is missing.
+  function rateBetween(date, from, to) {
+    if (from === to) return 1;
+    var a = fx(date, from), b = fx(date, to);
+    return a && b ? a / b : null;
+  }
+
+  // "1 USD = 25,470 VND", always written from the stronger currency so it never reads 0.00004.
+  function rateText(rate, from, to) {
+    if (rate == null) return '';
+    return rate >= 1 ? '1 ' + from + ' = ' + num(rate, rate % 1 ? 2 : 0) + ' ' + to : '1 ' + to + ' = ' + num(1 / rate, (1 / rate) % 1 ? 2 : 0) + ' ' + from;
+  }
+
   // ---------- price lookup (P2) ----------
 
   // Narrows the price table one condition at a time, so a miss says which step failed (never a 0 price).
-  // The most specific row wins: customer, then port, then area, then bounded DWT / LOA ranges.
+  // The most specific row wins: customer, then port, then area, then bounded DWT / LOA ranges. A row has one
+  // effective date and no end: among rows of the same conditions, the latest one on or before the day applies.
   function lookup(q) {
     var steps = [
       ['Customer', function (p) { return !p.customer || p.customer === q.customer; }, 'no price row for ' + (custName(q.customer) || 'this customer') + ' or for any customer'],
-      ['Date', function (p) { return dkey(p.from) <= dkey(q.date) && (!p.to || dkey(q.date) <= dkey(p.to)); }, 'no price is valid on ' + q.date],
+      ['Date', function (p) { return dkey(p.from) <= dkey(q.date); }, 'no price is in effect yet on ' + q.date],
       ['Service', function (p) { return p.service === q.service; }, 'no price for ' + svc(q.service).name],
       ['Area / port', function (p) { return (!p.port || p.port === q.port) && (!p.area || p.area === areaOf(q.port)); }, 'no price for port ' + q.port + (areaOf(q.port) ? ' (' + areaOf(q.port) + ')' : ' (port has no area)')],
       ['DWT', function (p) { return p.dwtMin == null && p.dwtMax == null || inRange(q.dwt, p.dwtMin, p.dwtMax); }, 'DWT ' + (q.dwt == null ? '(missing)' : num(q.dwt)) + ' is outside every DWT range'],
@@ -115,7 +133,7 @@
       rows = next;
     }
     var score = function (p) { return (p.customer ? 8 : 0) + (p.port ? 4 : 0) + (p.area ? 2 : 0) + (p.dwtMin != null || p.dwtMax != null ? 1 : 0) + (p.loaMin != null || p.loaMax != null ? 1 : 0); };
-    rows = rows.slice().sort(function (a, b) { return score(b) - score(a); });
+    rows = rows.slice().sort(function (a, b) { return score(b) - score(a) || (dkey(b.from) > dkey(a.from) ? 1 : dkey(b.from) < dkey(a.from) ? -1 : 0); });
     return { row: rows[0] };
   }
 
@@ -153,16 +171,19 @@
     return t ? { percent: t.percent, moves: n } : null;
   }
 
-  // Everything the table shows for one line, and what is still missing before it can be exported.
+  // Everything the table shows for one line, and what is still missing (a warning only: nothing is blocked).
+  // unitCur = the price's own currency (table or override); currency = the one the line is billed in, picked on
+  // the line (default: unitCur). rate converts unitCur → currency on the service day. beforeVat is the price
+  // after the discount (price currency), vat comes from the invoice customer, amount = total in the billed currency.
   function calc(l) {
     var out = { missing: [] };
-    if (!l.invoice) out.missing.push('Invoice customer (J) not set');
+    if (!l.invoice) out.missing.push('Invoice customer not set');
     if (l.dwt == null) out.missing.push('DWT missing');
     if (l.loa == null) out.missing.push('LOA missing');
     if (P.discountScope.countOnly.indexOf(l.service) >= 0) { out.countOnly = true; return out; }
     if (l.invoice) {
       var r = lookup({ customer: l.invoice, date: l.date, service: l.service, port: l.port, dwt: l.dwt, loa: l.loa });
-      if (r.error) out.error = r.error; else { out.price = r.row.price; out.currency = r.row.currency; out.priceRow = r.row.id; }
+      if (r.error) out.error = r.error; else { out.price = r.row.price; out.priceCur = r.row.currency; out.priceRow = r.row.id; }
     }
     var unit = l.override != null ? l.override : out.price;
     if (unit == null) {
@@ -170,19 +191,28 @@
       return out;
     }
     out.unit = unit;
-    out.currency = l.override != null ? l.overrideCurrency || out.currency || 'VND' : out.currency;
+    out.unitCur = l.override != null ? l.overrideCurrency || out.priceCur || 'VND' : out.priceCur;
+    out.currency = l.currency || out.unitCur;
     // share: a 1-tugboat line split by percent (e.g. 50% CGM) bills only its part.
     out.gross = unit * (l.tugs || 1) * (l.share != null ? l.share / 100 : 1);
     var t = l.invoice ? tierFor(l.invoice, monthOf(l)) : null;
     out.discount = t;
-    out.amount = out.gross * (1 - (t ? t.percent : 0) / 100);
-    var rate = fx(l.date, out.currency);
-    out.vnd = rate ? out.amount * rate : null;
-    if (out.currency !== 'VND' && !rate) out.missing.push('No ' + out.currency + ' → VND rate on ' + l.date);
+    var net = out.gross * (1 - (t ? t.percent : 0) / 100);
+    // Price before VAT and VAT stay in the price's currency; the total = (price after VAT, else before VAT) × rate.
+    var u = Math.pow(10, curOf(out.unitCur).decimals);
+    out.beforeVat = Math.round(net * u) / u;
+    var c = cust(l.invoice);
+    out.vatPct = c ? c.vat : null;
+    out.vat = c ? Math.round(out.beforeVat * c.vat / 100 * u) / u : null;
+    out.rate = rateBetween(l.date, out.unitCur, out.currency);
+    if (out.rate == null) { out.missing.push('No ' + out.unitCur + ' → ' + out.currency + ' rate on ' + l.date); return out; }
+    var d = Math.pow(10, curOf(out.currency).decimals);
+    out.amount = Math.round((out.vat != null ? out.beforeVat + out.vat : out.beforeVat) * out.rate * d) / d;
     return out;
   }
 
-  var L = { month: ledgerMonth(), lastMonth: ledgerMonth(), customers: [], from: '', to: '', missing: false, sel: {} };
+  // months: one or more months (mm/yyyy); a date range empties it and takes its place, lastMonths brings it back.
+  var L = { months: [ledgerMonth()], lastMonths: [ledgerMonth()], customers: [], from: '', to: '', missing: false, sel: {} };
 
   // Nothing ticked: a hint. Something ticked: the count, clear, and the way to export it.
   function selBar(n) {
@@ -191,10 +221,13 @@
       '<button class="lg-sel-go" data-action="l-export" data-arg="selected">Export ' + n + ' →</button>';
   }
   var lineKey = function (l) { return l.stt + '.' + l.sub; };
+  // SUB column: {monthly order No.}_{sub number}, the original line being _1.
+  var subNo = function (l) { return l.stt + '_' + l.sub; };
+  var pendingAi = function () { return P.splitProposals.filter(function (p) { return p.status === 'pending'; }).length; };
 
   // The lines of the period on screen: the month, or the date range that takes its place.
   function inPeriod(l) {
-    if (L.month && monthOf(l) !== L.month) return false;
+    if (L.months.length && L.months.indexOf(monthOf(l)) < 0) return false;
     if (L.from && dkey(l.date) < L.from.replace(/-/g, '')) return false;
     if (L.to && dkey(l.date) > L.to.replace(/-/g, '')) return false;
     return true;
@@ -221,7 +254,7 @@
   }
 
   function tabs(cur) {
-    var t = [['ledger', 'Lines'], ['ledger/ai', 'AI proposals', P.splitProposals.filter(function (p) { return p.status === 'pending'; }).length], ['ledger/export', 'Export'], ['ledger/files', 'Files']];
+    var t = [['ledger', 'Lines'], ['ledger/ai', 'AI suggestions', pendingAi()], ['ledger/export', 'Export'], ['ledger/files', 'Files']];
     if (!canWork()) t = t.filter(function (x) { return x[0] !== 'ledger/export'; });
     return '<div class="lg-tabs">' + t.map(function (x) {
       return '<button class="' + (x[0] === cur ? 'on' : '') + '" data-go="' + x[0] + '">' + esc(x[1]) + (x[2] ? '<em>' + x[2] + '</em>' : '') + '</button>';
@@ -254,7 +287,9 @@
     var nSel = Object.keys(L.sel).length;
     var dm = function (v) { return v ? v.slice(8, 10) + '/' + v.slice(5, 7) : '…'; };
     var tools = '<div class="lg-tools"><div class="dt-chips">' +
-      chip(L.month ? esc(L.month) + ' ▾' : 'Month ▾', !!L.month, 'l-month') +
+      // One month: the month; several: the latest and how many more (all of them in the tooltip).
+      (L.months.length ? '<button class="on" data-action="l-month" title="' + esc(sortMonths(L.months).join(', ')) + '">' + esc(sortMonths(L.months)[0]) +
+        (L.months.length > 1 ? ' +' + (L.months.length - 1) : '') + ' ▾</button>' : chip('Month ▾', false, 'l-month')) +
       // One customer: its short name; several: the first and how many more. The ✕ clears them all, the rest reopens the picker.
       (L.customers.length ? '<button class="on" data-action="l-customer" title="' + esc(L.customers.map(custName).join(', ')) + '">' +
         esc((cust(L.customers[0]) || {}).short) + (L.customers.length > 1 ? ' +' + (L.customers.length - 1) : '') +
@@ -262,76 +297,120 @@
         chip('Customer ▾', false, 'l-customer')) +
       (L.from || L.to ? '<button class="on" data-action="l-dates">' + dm(L.from) + ' – ' + dm(L.to) +
         '<span class="lg-chip-x" role="button" aria-label="Clear dates" data-action="l-dates-clear">✕</span></button>' :
-        chip('Dates ▾', false, 'l-dates')) + '</div>' +
+        chip('Dates ▾', false, 'l-dates')) +
+      (work ? '<button class="lg-ai" data-action="ai-run">' + emoji('✨') + 'AI suggest</button>' : '') + '</div>' +
       // The warning is the way to the lines: tap it to show only those, tap again to show all.
       (L.missing ? '<button class="lg-flag on" data-action="l-missing">' + emoji('⚠️') + '<span>Showing ' + rows.length + ' line' + (rows.length === 1 ? '' : 's') + ' missing data</span><b>Show all</b></button>' :
-        flagged ? '<button class="lg-flag" data-action="l-missing">' + emoji('⚠️') + '<span>' + flagged + ' line' + (flagged > 1 ? 's' : '') + ' missing data · fix before export</span><b>Show</b></button>' : '') +
-      (work ? '<div class="lg-sel" data-lsel-count>' + selBar(nSel) + '</div>' : '<p class="lg-ro">' + emoji('👁️') + 'Read only · prices visible, no actions, no export.</p>') + '</div>';
+        flagged ? '<button class="lg-flag" data-action="l-missing">' + emoji('⚠️') + '<span>' + flagged + ' line' + (flagged > 1 ? 's' : '') + ' missing data</span><b>Show</b></button>' : '') +
+      (pendingAi() ? '<button class="lg-ai-bar" data-go="ledger/ai">' + emoji('✨') + '<span><b>' + plural(pendingAi(), 'AI suggestion') + '</b> waiting for review</span><b>Review →</b></button>' : '') +
+      (work ? '<div class="lg-sel" data-lsel-count>' + selBar(nSel) + '</div>' : '<p class="lg-ro">' + emoji('👁️') + 'View only · prices visible, no actions, no export.</p>') + '</div>';
+    // A customer picked on the line: a button for those who work the ledger, plain text for the rest.
+    var custPick = function (l, i, key, action) {
+      var c = cust(l[key]);
+      var name = c ? esc(c.name) : '<span class="lg-miss">Choose…</span>';
+      var vat = key === 'invoice' && c ? '<small>VAT ' + c.vat + '%</small>' : '';
+      if (work) return '<button class="lg-pick" data-action="' + action + '" data-arg="' + i + '"><span>' + name + ' ▾</span>' + vat + '</button>';
+      return '<span class="lg-pick ro"><span>' + name + '</span>' + vat + '</span>';
+    };
+    var label = function (key) { var c = D.ledgerColumns.filter(function (x) { return x[1] === key; })[0]; return c[2]; };
     var cols = [];
-    // A · No. (and the tick box) stay frozen while the table scrolls to J, so the row being edited is always named.
+    // No. (and the tick box) stay frozen while the table scrolls to the invoice customer, so the row being edited is always named.
     if (work) cols.push({ key: 'sel', label: '', cls: 'lg-c-sel', stick: 0, cell: function (l) { return '<label class="lg-tick"><input type="checkbox" data-lsel="' + lineKey(l) + '"' + (L.sel[lineKey(l)] ? ' checked' : '') + ' aria-label="Select line" /></label>'; } });
     cols = cols.concat([
-      { key: 'stt', label: 'A · No.', sort: 'number', cls: 'lg-c-no', stick: work ? 36 : 0, edge: true, cell: function (l) {
+      { key: 'stt', label: label('stt'), sort: 'number', cls: 'lg-c-no', stick: work ? 36 : 0, edge: true, cell: function (l) {
         var c = calc(l);
-        return '<b>' + l.stt + '</b>' + (l.sub > 1 ? '<span class="lg-sub">sub ' + l.sub + '</span>' : '') +
-          (c.missing.length ? '<span class="lg-warn"' + tip('Missing: ' + c.missing.join(' · ')) + '>⚠</span>' : '');
+        return '<b>' + l.stt + '</b>' + (c.missing.length ? '<span class="lg-warn"' + tip('Missing: ' + c.missing.join(' · ')) + '>⚠</span>' : '');
       } },
-      { key: 'date', label: 'B · Date', sort: 'datetime' },
-      { key: 'vessel', label: 'C · Vessel', sort: 'text', cls: 'clip', cell: function (l) { return '<b' + tip(l.vessel + ' · Trip #' + l.trip) + '>' + esc(l.vessel) + '</b>'; } },
-      { key: 'dwt', label: 'D · DWT', sort: 'number', cls: 'num', cell: function (l) { return l.dwt == null ? '<span class="lg-miss">missing</span>' : num(l.dwt); } },
-      { key: 'loa', label: 'E · LOA', sort: 'number', cls: 'num', cell: function (l) { return l.loa == null ? '<span class="lg-miss">missing</span>' : num(l.loa, 2); } },
-      { key: 'port', label: 'F · Port', sort: 'text' },
-      { key: 'service', label: 'G · Service', sort: 'text', cell: function (l) { return esc(svc(l.service).name); } },
-      { key: 'tugs', label: 'H · Tugs', sort: 'number', cls: 'num', cell: function (l) { return l.tugs + (l.share != null ? '<small class="lg-diff">' + l.share + '%</small>' : ''); } },
-      { key: 'customer', label: 'I · Ordered by', sort: 'text', cell: function (l) { return esc(custName(l.customer)); } },
-      // The one editable column: a picker, never free text, with the ticket note next to it.
-      { key: 'invoice', label: 'J · Invoice customer', cls: 'lg-c-j', cell: function (l, i) {
-        var c = cust(l.invoice);
-        var name = c ? esc(c.name) : '<span class="lg-miss">Choose…</span>';
-        var vat = c ? '<small>VAT ' + c.vat + '%</small>' : '';
-        if (work && !locked(l)) return '<button class="lg-pick" data-action="l-invoice" data-arg="' + i + '"><span>' + name + ' ▾</span>' + vat + '</button>';
-        return '<span class="lg-pick ro"' + (work ? tip('Invoiced · locked') : '') + '><span>' + (work ? '🔒 ' : '') + name + '</span>' + vat + '</span>';
-      } },
-      { key: 'price', label: 'K · Unit price', cls: 'num', cell: function (l) {
+      // SUB = {monthly order No.}_{sub number}; the original line is _1.
+      { key: 'sub', label: label('sub'), sort: 'number', cell: function (l) { return '<span class="lg-subno' + (l.sub > 1 ? ' split' : '') + '">' + subNo(l) + '</span>'; } },
+      { key: 'date', label: label('date'), sort: 'datetime' },
+      { key: 'port', label: label('port'), sort: 'text' },
+      { key: 'agent', label: label('agent'), sort: 'text', cell: function (l) { return api.dash((byId(P.agents, lineAgent(l)) || {}).name); } },
+      { key: 'vessel', label: label('vessel'), sort: 'text', cls: 'clip', cell: function (l) { return '<b' + tip(l.vessel + ' · Trip #' + l.trip) + '>' + esc(l.vessel) + '</b>'; } },
+      { key: 'dwt', label: label('dwt'), sort: 'number', cls: 'num', cell: function (l) { return l.dwt == null ? '<span class="lg-miss">missing</span>' : num(l.dwt); } },
+      { key: 'loa', label: label('loa'), sort: 'number', cls: 'num', cell: function (l) { return l.loa == null ? '<span class="lg-miss">missing</span>' : num(l.loa, 2); } },
+      { key: 'service', label: label('service'), sort: 'text', cell: function (l) { return esc(svc(l.service).name); } },
+      { key: 'tugs', label: label('tugs'), sort: 'number', cls: 'num', cell: function (l) { return l.tugs + (l.share != null ? '<small class="lg-diff">' + l.share + '%</small>' : ''); } },
+      { key: 'customer', label: label('customer'), sort: 'text', cell: function (l, i) { return custPick(l, i, 'customer', 'l-ordered'); } },
+      { key: 'invoice', label: label('invoice'), cls: 'lg-c-j', cell: function (l, i) { return custPick(l, i, 'invoice', 'l-invoice'); } },
+      { key: 'price', label: label('price'), cls: 'num', cell: function (l) {
         var c = calc(l);
         if (c.countOnly) return '<span class="dt-muted"' + tip('Counted toward the discount tier, never charged') + '>counted · no charge</span>';
         if (c.error) return '<span class="lg-err"' + tip('No price: ' + c.error) + '>⚠ no price</span>';
-        return c.price == null ? api.dash('') : '<span' + (l.override != null ? ' class="lg-was"' : '') + '>' + money(c.price, c.currency) + '</span>';
+        return c.price == null ? api.dash('') : '<span' + (l.override != null ? ' class="lg-was"' : '') + '>' + money(c.price, c.priceCur) + '</span>';
       } },
-      { key: 'override', label: 'L · Override', cls: 'num', cell: function (l) {
+      { key: 'override', label: label('override'), cls: 'num', cell: function (l) {
         if (l.override == null) return api.dash('');
         var c = calc(l);
-        var diff = c.price != null && (l.overrideCurrency || c.currency) === c.currency ? l.override - c.price : null;
-        return '<b' + (l.overrideReason ? tip('Override reason: ' + l.overrideReason) : '') + '>' + money(l.override, l.overrideCurrency || c.currency || 'VND') + '</b>' +
-          (diff != null ? '<small class="lg-diff">' + (diff >= 0 ? '+' : '') + num(diff, curOf(c.currency).decimals) + ' vs table</small>' : '<small class="lg-diff">table: none</small>');
+        var diff = c.price != null && c.unitCur === c.priceCur ? l.override - c.price : null;
+        return '<b' + (l.overrideReason ? tip('Override reason: ' + l.overrideReason) : '') + '>' + money(l.override, c.unitCur) + '</b>' +
+          (diff != null ? '<small class="lg-diff">' + (diff >= 0 ? '+' : '') + num(diff, curOf(c.unitCur).decimals) + ' vs table</small>' : '<small class="lg-diff">table: none</small>');
       } },
-      { key: 'currency', label: 'M · Currency', cell: function (l) { return esc(calc(l).currency || ''); } },
-      { key: 'amount', label: 'N · Amount', cls: 'num', cell: function (l) {
+      // The currency the line is billed in: picked on the line, the price's own currency by default.
+      { key: 'currency', label: label('currency'), cell: function (l, i) {
         var c = calc(l);
-        if (c.amount == null) return api.dash('');
-        return '<b>' + money(c.amount, c.currency) + '</b>' + (c.discount ? '<small class="lg-diff">−' + c.discount.percent + '% (' + c.discount.moves + ' moves this month)</small>' : '') +
-          (c.currency !== 'VND' && c.vnd != null ? '<small class="lg-diff">≈ ' + money(c.vnd, 'VND') + '</small>' : '');
+        if (c.unit == null) return api.dash('');
+        if (!work) return esc(c.currency);
+        return '<select class="lg-cur" data-lcur="' + i + '" aria-label="Currency">' + P.currencies.map(function (x) {
+          return '<option value="' + esc(x.code) + '"' + (x.code === c.currency ? ' selected' : '') + '>' + esc(x.code) + '</option>';
+        }).join('') + '</select>';
       } },
-      { key: 'status', label: 'O · Billing status', sort: 'text', cell: function (l) { return statusPill(l.status); } },
-      { key: 'agent', label: 'P · Agent', sort: 'text', cell: function (l) { return api.dash((byId(P.agents, lineAgent(l)) || {}).name); } }
+      { key: 'fx', label: label('fx'), cls: 'num', cell: function (l) {
+        var c = calc(l);
+        if (c.unit == null) return api.dash('');
+        if (c.rate == null) return '<span class="lg-err"' + tip('Add the rate in Currencies & Rates') + '>⚠ no rate</span>';
+        if (c.unitCur === c.currency) return '<span class="dt-muted">1 · same currency</span>';
+        return '<span' + tip('Rate of ' + l.date + ' (or the last one before it)') + '>' + esc(rateText(c.rate, c.unitCur, c.currency)) + '</span>';
+      } },
+      { key: 'beforeVat', label: label('beforeVat'), cls: 'num', cell: function (l) {
+        var c = calc(l);
+        if (c.beforeVat == null) return api.dash('');
+        return money(c.beforeVat, c.unitCur) + (c.discount ? '<small class="lg-diff">−' + c.discount.percent + '% (' + c.discount.moves + ' moves this month)</small>' : '');
+      } },
+      { key: 'vat', label: label('vat'), cls: 'num', cell: function (l) {
+        var c = calc(l);
+        if (c.beforeVat == null) return api.dash('');
+        if (c.vat == null) return '<span class="dt-muted"' + tip('Set the invoice customer to get its VAT') + '>-</span>';
+        return money(c.vat, c.unitCur) + '<small class="lg-diff">' + c.vatPct + '%</small>';
+      } },
+      { key: 'amount', label: label('amount'), cls: 'num', cell: function (l) {
+        var c = calc(l);
+        return c.amount == null ? api.dash('') : '<b>' + money(c.amount, c.currency) + '</b>';
+      } },
+      { key: 'status', label: label('status'), sort: 'text', cell: function (l) { return statusPill(l.status); } }
     ]);
     return ledgerPage('ledger', '', api.dataTable({
       source: P.ledger, list: rows, noun: 'line', perPage: 20, placeholder: 'Search No., vessel, customer, note…', sort: ['stt', 1],
-      empty: L.month ? 'No lines in this month' : 'No lines in this period', tools: tools, cols: cols,
-      actions: work ? function (l, i) { return locked(l) ? '<span class="dt-muted"' + tip('Invoiced lines are locked') + '>🔒</span>' : api.btn('', 'data-action="l-more" data-arg="' + i + '"', '⋯'); } : null
+      empty: L.months.length === 1 ? 'No lines in this month' : L.months.length ? 'No lines in these months' : 'No lines in this period', tools: tools, cols: cols,
+      actions: work ? function (l, i) { return api.btn('', 'data-action="l-more" data-arg="' + i + '"', '⋯'); } : null
     }));
   };
 
   // ---------- ledger actions ----------
 
-  api.actions['l-month'] = function () {
+  // mm/yyyy list, latest first.
+  function sortMonths(list) {
     var ym = function (m) { return m.slice(3) + m.slice(0, 2); };
-    var months = P.ledger.map(monthOf).filter(function (m, i, a) { return a.indexOf(m) === i; }).sort(function (a, b) { return ym(b) < ym(a) ? -1 : 1; });
-    // The ledger is always read for one period: a month, or a date range (which takes the month's place).
+    return list.slice().sort(function (a, b) { return ym(b) < ym(a) ? -1 : 1; });
+  }
+
+  // Several months can be picked. The ledger is always read for a period: one or more months, or a date range
+  // (which takes their place), so Done with nothing ticked keeps the months as they were.
+  api.actions['l-month'] = function () {
+    var months = sortMonths(P.ledger.map(monthOf).filter(function (m, i, a) { return a.indexOf(m) === i; }));
     var now = ledgerMonth();
-    api.actionSheet('Month', null, months.map(function (m) {
-      return { label: m + (m === L.month ? ' ✓' : ''), run: function () { L.month = m; L.from = L.to = ''; api.render(); } };
-    }), { reset: { label: 'Reset to ' + now, run: function () { L.month = now; L.from = L.to = ''; api.render(); } } });
+    api.picker({
+      title: 'Months', multi: true, value: L.months, placeholder: 'Search month, e.g. 09/2026',
+      items: months.map(function (m) {
+        var n = P.ledger.filter(function (l) { return monthOf(l) === m; }).length;
+        return { value: m, label: m, sub: n + ' line' + (n === 1 ? '' : 's') };
+      }),
+      onPick: function (v) {
+        if (!v.length) return api.toast('Pick at least one month');
+        L.months = sortMonths(v); L.from = L.to = ''; api.render();
+      },
+      onReset: function () { L.months = [now]; L.from = L.to = ''; api.render(); }
+    });
   };
   api.actions['l-customer'] = function () {
     // Customers with lines in the period come first, busiest first, each with its line count.
@@ -353,7 +432,7 @@
     L.customers = [];
     api.render();
   };
-  function clearDates() { L.from = L.to = ''; L.month = L.month || L.lastMonth; }
+  function clearDates() { L.from = L.to = ''; if (!L.months.length) L.months = L.lastMonths.slice(); }
   api.actions['l-dates-clear'] = function () { clearDates(); api.render(); };
   api.actions['l-dates'] = function () {
     api.editDialog({
@@ -364,7 +443,7 @@
       onSave: function () {
         var f = document.querySelector('.ed-dialog');
         if (!f.elements.from.value && !f.elements.to.value) return { error: 'Choose at least one day.' };
-        L.from = f.elements.from.value; L.to = f.elements.to.value; L.lastMonth = L.month || L.lastMonth; L.month = '';
+        L.from = f.elements.from.value; L.to = f.elements.to.value; if (L.months.length) L.lastMonths = L.months.slice(); L.months = [];
       }
     });
   };
@@ -384,26 +463,53 @@
     if (c) c.innerHTML = selBar(n);
   });
 
-  function pickInvoice(l, onPick) {
+  // The customer picker of a line (Ordered by, Invoice customer). Its "New customer" button opens the customer
+  // form and, once saved, sets the new customer on the line, so a missing customer never sends anyone elsewhere.
+  var newCustDone = null;
+  function pickCustomer(l, what, value, onPick) {
+    newCustDone = onPick;
     api.picker({
-      title: 'Invoice customer · No. ' + l.stt + (l.sub > 1 ? ' sub ' + l.sub : ''),
-      head: '<div class="pk-head"><b>' + esc(l.vessel) + ' · ' + esc(svc(l.service).name) + '</b><span>Ticket note: ' + (l.note ? esc(l.note) : '-') + '</span></div>',
-      items: P.customers.map(custItem), value: l.invoice || '', placeholder: 'Search customer, short name, tax code', onPick: onPick
+      title: what + ' · ' + subNo(l),
+      head: '<div class="pk-head"><b>' + esc(l.vessel) + ' · ' + esc(svc(l.service).name) + '</b><span>Ticket note: ' + (l.note ? esc(l.note) : '-') + '</span>' +
+        '<button type="button" class="pk-new" data-action="l-newcust">' + I.plus + 'New customer</button></div>',
+      items: P.customers.map(custItem), value: value || '', placeholder: 'Search customer, short name, tax code', onPick: onPick
     });
   }
+  api.actions['l-newcust'] = function () {
+    var done = newCustDone;
+    api.closeOverlay();
+    customerDialog(null, function (c) { if (done) done(c.id); });
+  };
 
   api.actions['l-invoice'] = function (el) {
     var l = P.ledger[Number(el.dataset.arg)];
-    if (!canWork() || locked(l)) return;
-    pickInvoice(l, function (v) {
+    if (!canWork()) return;
+    pickCustomer(l, 'Invoice customer', l.invoice, function (v) {
       l.invoice = v || null;
-      // A new invoice customer means a new price: the line goes back to provisional (or pending when cleared).
-      l.status = v ? 'provisional' : 'pending';
+      if (v && l.status === 'pending') l.status = 'provisional';
       keep('ledger');
       api.render();
       api.toast(v ? 'Invoice customer · ' + custName(v) : 'Invoice customer cleared');
     });
   };
+  api.actions['l-ordered'] = function (el) {
+    var l = P.ledger[Number(el.dataset.arg)];
+    if (!canWork()) return;
+    pickCustomer(l, 'Ordered by', l.customer, function (v) {
+      l.customer = v || null;
+      keep('ledger');
+      api.render();
+      api.toast('Ordered by · ' + (custName(v) || 'none'));
+    });
+  };
+  // The billing currency of a line; the price's own currency again clears the choice.
+  document.addEventListener('change', function (e) {
+    if (!e.target.matches('[data-lcur]')) return;
+    var l = P.ledger[Number(e.target.dataset.lcur)];
+    l.currency = e.target.value === calc(Object.assign({}, l, { currency: null })).unitCur ? null : e.target.value;
+    keep('ledger');
+    api.render();
+  });
 
   // A sub-ticket: one more line on the same No. (sub 2, 3, …), priced for its own customer. Its tugboats
   // move over from the line it was split from, so the ticket's total stays the same.
@@ -422,13 +528,13 @@
     return line;
   }
 
-  function splitDialog(l, preset, done) {
-    if (locked(l)) return api.toast('No. ' + l.stt + ' is invoiced · locked');
-    if ((l.tugs || 1) < 2) return shareDialog(l, preset, done);
+  // amount (optional, from an AI suggestion): tugboats to move, or the percent on a 1-tugboat line.
+  function splitDialog(l, preset, done, amount) {
+    if ((l.tugs || 1) < 2) return shareDialog(l, preset, done, amount);
     api.editDialog({
-      title: 'Split No. ' + l.stt + ' into a sub-ticket',
+      title: 'Split ' + subNo(l) + ' into a sub-ticket',
       text: l.vessel + ' · ' + svc(l.service).name + ' · ' + l.tugs + ' tugboats. The new line keeps its No., gets the next sub number, takes its tugboats from this line and is priced for its own customer.',
-      values: { customer: preset || '', tugs: 1 },
+      values: { customer: preset || '', tugs: amount && amount < l.tugs ? amount : 1 },
       fields: [
         { name: 'customer', label: 'Invoice customer of the new line', type: 'one', req: true, options: P.customers.map(custItem) },
         { name: 'tugs', label: 'Tugboats moved to the new line', type: 'number', req: true, half: true, hint: l.tugs === 2 ? 'Only 1 can move' : '1 to ' + (l.tugs - 1) },
@@ -439,21 +545,21 @@
         var n = parseNum(v.tugs);
         if (!n || n < 1 || n % 1 || n >= l.tugs) return { error: (l.tugs === 2 ? 'Move 1 tugboat' : 'Move 1 to ' + (l.tugs - 1) + ' tugboats') + '; at least 1 stays on this line.' };
         var line = createSub(l, v.customer, n);
-        api.toast('Sub-ticket ' + line.stt + ' sub ' + line.sub + ' created');
+        api.toast('Sub-ticket ' + subNo(line) + ' created');
         if (done) done(line);
       }
     });
   }
 
   // A 1-tugboat line has no tugboat to move, so the new line takes a percent of it instead ("50% CGM").
-  function shareDialog(l, preset, done) {
+  function shareDialog(l, preset, done, amount) {
     var left = l.share != null ? l.share : 100;
     if (left < 2) return api.toast('No. ' + l.stt + (l.sub > 1 ? ' sub ' + l.sub : '') + ' has 1% left · nothing to split off');
     var hint = (l.note || '').match(/(\d{1,2})\s*%/);
     api.editDialog({
-      title: 'Split No. ' + l.stt + ' into a sub-ticket',
+      title: 'Split ' + subNo(l) + ' into a sub-ticket',
       text: l.vessel + ' · ' + svc(l.service).name + ' · 1 tugboat. The new line keeps its No., gets the next sub number and bills the percent below for its own customer; this line keeps the rest.',
-      values: { customer: preset || '', share: hint ? hint[1] : 50 },
+      values: { customer: preset || '', share: amount || (hint ? hint[1] : 50) },
       fields: [
         { name: 'customer', label: 'Invoice customer of the new line', type: 'one', req: true, options: P.customers.map(custItem) },
         { name: 'share', label: 'Percent moved to the new line', type: 'number', req: true, half: true, hint: '1 to ' + (left - 1) + ' (of ' + left + '%)' },
@@ -464,7 +570,7 @@
         var n = parseNum(v.share);
         if (!n || n < 1 || n % 1 || n >= left) return { error: 'Move 1 to ' + (left - 1) + '%; some stays on this line.' };
         var line = createSub(l, v.customer, 0, n);
-        api.toast('Sub-ticket ' + line.stt + ' sub ' + line.sub + ' created · ' + n + '%');
+        api.toast('Sub-ticket ' + subNo(line) + ' created · ' + n + '%');
         if (done) done(line);
       }
     });
@@ -473,35 +579,34 @@
   api.actions['l-more'] = function (el) {
     var i = Number(el.dataset.arg);
     var l = P.ledger[i];
-    if (!canWork() || locked(l)) return;
+    if (!canWork()) return;
     var items = [
       { label: 'Split into a sub-ticket…', icon: '➗', run: function () { splitDialog(l); } },
       { label: l.override != null ? 'Change override price…' : 'Override price…', icon: '✏️', run: function () { overrideDialog(l); } }
     ];
     if (l.override != null) items.push({ label: 'Remove override', icon: '↩️', run: function () { l.override = null; l.overrideReason = ''; l.overrideCurrency = null; keep('ledger'); api.render(); } });
-    if (l.status !== 'confirmed' && l.status !== 'invoiced') items.push({ label: 'Confirm line', icon: '✅', run: function () {
-      var c = calc(l);
-      if (c.missing.length) return api.toast('Missing: ' + c.missing[0]);
-      l.status = 'confirmed'; keep('ledger'); api.render(); api.toast('Line confirmed');
+    // The billing status is a label for viewing: any status can be set at any time, and none locks the line.
+    items.push({ label: 'Billing status…', icon: '🏷️', run: function () {
+      api.actionSheet('Billing status · ' + subNo(l), 'For viewing only · it never locks the line', Object.keys(D.billingStatus).map(function (k) {
+        return { label: D.billingStatus[k].label + (l.status === k ? ' ✓' : ''), run: function () { l.status = k; keep('ledger'); api.render(); } };
+      }));
     } });
-    if (l.status === 'confirmed') items.push({ label: 'Mark invoiced', icon: '🧾', run: function () { l.status = 'invoiced'; keep('ledger'); api.render(); } });
     if (l.sub > 1) items.push({ label: 'Delete sub-ticket', icon: '🗑️', danger: true, run: function () {
-      // Its tugboats go back to the first line of the No. that is not invoiced.
-      var back = P.ledger.filter(function (x) { return x.stt === l.stt && x !== l && !locked(x); })[0];
-      if (!back) return api.toast('Every other line of No. ' + l.stt + ' is invoiced · its tugboats have nowhere to go');
+      // Its tugboats go back to the first other line of the No.
+      var back = P.ledger.filter(function (x) { return x.stt === l.stt && x !== l; })[0];
       if (l.share != null) back.share = Math.min(100, (back.share != null ? back.share : 100) + l.share); else back.tugs += l.tugs;
       P.ledger.splice(P.ledger.indexOf(l), 1); keep('ledger'); api.render();
       api.toast('Sub ' + l.sub + ' deleted · ' + (l.share != null ? l.share + '%' : l.tugs + ' tug' + (l.tugs > 1 ? 's' : '')) + ' back to sub ' + back.sub + ' · other lines keep their numbers');
     } });
-    api.actionSheet('No. ' + l.stt + (l.sub > 1 ? ' · sub ' + l.sub : '') + ' · ' + l.vessel, esc(svc(l.service).name) + ' · ' + esc(l.date), items);
+    api.actionSheet(subNo(l) + ' · ' + l.vessel, esc(svc(l.service).name) + ' · ' + esc(l.date), items);
   };
 
   function overrideDialog(l) {
     var c = calc(l);
     api.editDialog({
       title: 'Override price · No. ' + l.stt,
-      text: c.price != null ? 'Price table: ' + money(c.price, c.currency) + ' per tugboat. The override is shown next to it.' : 'The price table has no price for this line' + (c.error ? ' (' + c.error + ')' : '') + '.',
-      values: { price: l.override == null ? '' : l.override, currency: l.overrideCurrency || c.currency || 'VND', reason: l.overrideReason || '' },
+      text: c.price != null ? 'Price table: ' + money(c.price, c.priceCur) + ' per tugboat. The override is shown next to it.' : 'The price table has no price for this line' + (c.error ? ' (' + c.error + ')' : '') + '.',
+      values: { price: l.override == null ? '' : l.override, currency: l.overrideCurrency || c.priceCur || 'VND', reason: l.overrideReason || '' },
       fields: [
         { name: 'price', label: 'Price per tugboat', req: true, half: true, hint: '“80k” = 80,000' },
         { name: 'currency', label: 'Currency', type: 'select', half: true, options: P.currencies.map(function (x) { return { value: x.code, label: x.code }; }) },
@@ -547,17 +652,17 @@
         '<p class="lx-count">' + (X.from && X.to ? (lines.length ? '<b>' + plural(lines.length, 'line') + '</b> in this range' : 'No line in this range') : 'Choose both days.') + '</p>';
     }
 
-    // 3 · checked before the button, so a refusal is never a surprise
+    // 3 · a heads-up before the button: lines missing data still export
     var check;
-    if (!lines.length) check = '<p class="lx-ok idle">Choose lines first. Lines missing data are listed here; no file is made until they are fixed.</p>';
-    else if (bad.length) check = '<div class="lx-errors" role="alert"><b>' + emoji('⚠️') + plural(bad.length, 'line') + ' missing data · fix before export</b><ul>' + bad.map(function (e) {
-      return '<li><button data-action="lx-goto" data-arg="' + e.stt + '">No. ' + e.stt + (e.sub > 1 ? ' sub ' + e.sub : '') + ' · ' + esc(e.vessel) + '</button>: ' + esc(e.missing.join('; ')) + '</li>';
+    if (!lines.length) check = '<p class="lx-ok idle">Choose lines first. Lines missing data are listed here; they still export, with those cells blank.</p>';
+    else if (bad.length) check = '<div class="lx-errors" role="alert"><b>' + emoji('⚠️') + plural(bad.length, 'line') + ' missing data · they export with those cells blank</b><ul>' + bad.map(function (e) {
+      return '<li><button data-action="lx-goto" data-arg="' + e.stt + '">' + subNo(e) + ' · ' + esc(e.vessel) + '</button>: ' + esc(e.missing.join('; ')) + '</li>';
     }).join('') + '</ul></div>';
     else check = '<p class="lx-ok">' + I.check + 'All ' + plural(lines.length, 'line') + ' complete</p>';
 
-    var block = !lines.length ? '' : X.mode === 'selected' && lines.length > 500 ? 'At most 500 ticked lines per export. Use a date range for more.' : !nCols ? 'Choose at least one column.' : bad.length ? 'Fix the lines in step 3 first.' : '';
+    var block = !lines.length ? '' : X.mode === 'selected' && lines.length > 500 ? 'At most 500 ticked lines per export. Use a date range for more.' : !nCols ? 'Choose at least one column.' : '';
     var ready = lines.length && !block;
-    return ledgerPage('ledger/export', 'An .xlsx file with the ledger’s A–P columns. Amounts and dates are real numbers and dates.',
+    return ledgerPage('ledger/export', 'An .xlsx file with the ledger’s A–' + D.ledgerColumns[D.ledgerColumns.length - 1][0] + ' columns. Amounts and dates are real numbers and dates.',
       '<section class="lx-step"><h3><i>1</i>Lines</h3><div class="cfg-seg lx-mode">' +
         chip('Ticked (' + Object.keys(L.sel).length + ')', X.mode === 'selected', 'lx-mode', 'selected') + chip('Date range', X.mode === 'range', 'lx-mode', 'range') + '</div>' + pick + '</section>' +
       // Columns as a checklist in sheet order (A→P), with the Excel header each one gets.
@@ -581,7 +686,7 @@
   // Opens the line's own month with the other filters cleared, so the line to fix is sure to show.
   api.actions['lx-goto'] = function (el) {
     var line = P.ledger.filter(function (l) { return String(l.stt) === String(el.dataset.arg); })[0];
-    L.month = line ? monthOf(line) : L.month || L.lastMonth;
+    L.months = line ? [monthOf(line)] : L.months.length ? L.months : L.lastMonths.slice();
     L.customers = []; L.from = L.to = ''; L.missing = false; api.state.search = String(el.dataset.arg); api.go('ledger');
   };
   document.addEventListener('change', function (e) { if (e.target.matches('[data-lx]')) { X[e.target.dataset.lx] = e.target.value; api.render(); } });
@@ -593,8 +698,6 @@
     // The 500 cap is for lines ticked by hand; a date range exports every line in it.
     if (X.mode === 'selected' && lines.length > 500) return api.toast('At most 500 ticked lines per export');
     if (!X.cols.length) return api.toast('Choose at least one column');
-    // The button is disabled while lines miss data; this guards a direct call too.
-    if (lines.some(function (l) { return calc(l).missing.length; })) return api.toast('Some lines are missing data');
     var d = new Date();
     var stamp = d.toLocaleDateString('en-GB') + ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     P.ledgerFiles.unshift({ name: 'ledger_' + (X.mode === 'range' ? X.from + '_' + X.to : lines.length + '-lines') + '.xlsx', kind: 'manual', rows: lines.length, by: api.user.name, at: stamp });
@@ -625,38 +728,114 @@
   };
   api.actions['lf-kind'] = function (el) { fileKind = el.dataset.arg; api.render(); };
 
-  // ---------- AI split proposals (P5) ----------
+  // ---------- AI suggestions (P5) ----------
+
+  // ✨ AI suggest reads the notes of the lines on screen against the active rules and lists what it would change:
+  // set the invoice customer ("Invoice to: …") or split off a sub-ticket ("50% CGM", "1 tug for HG/ONE").
+  // It never changes a line by itself; ADMIN or an accountant accepts or declines each suggestion.
+  // (Demo: a few note patterns stand in for the AI.)
+  function findCust(text) {
+    var t = String(text || '').trim().toUpperCase().replace(/[\s.,]+$/, '');
+    if (!t) return null;
+    return P.customers.filter(function (c) { return c.name.toUpperCase() === t || c.short.toUpperCase() === t; })[0] ||
+      P.customers.filter(function (c) { return t.indexOf(c.name.toUpperCase()) === 0 || c.name.toUpperCase().indexOf(t) === 0; })[0] || null;
+  }
+
+  function suggestFor(l, rules) {
+    var out = [];
+    var note = l.note || '';
+    var to = /invoice to\s*:?\s*([^\/\n]+)/i.exec(note);
+    var c = to && findCust(to[1]);
+    if (rules.r2 && c && c.id !== l.invoice) out.push({ kind: 'invoice', suggest: c.id, rule: 'r2', text: 'Set the invoice customer of ' + subNo(l) + ' · ' + l.vessel + ' to ' + c.name });
+    var pc = /(\d{1,2})\s*%\s*([A-Z][A-Z&.\/ ]*)/i.exec(note);
+    var tg = /(\d+)\s*tugs?\s+(?:for|to)\s+([A-Z][A-Z&.\/]*)/i.exec(note);
+    var m = pc || tg;
+    var s = m && findCust(m[2]);
+    if (rules.r1 && s && s.id !== l.invoice) {
+      var tugs = l.tugs || 1;
+      var p = { kind: 'split', suggest: s.id, rule: 'r1' };
+      if (tg) p.tugs = Math.min(Number(tg[1]), tugs - 1);
+      else if (tugs > 1) p.tugs = Math.max(1, Math.round(tugs * Number(pc[1]) / 100));
+      else p.share = Number(pc[1]);
+      p.text = 'Split ' + subNo(l) + ' · ' + l.vessel + ': ' + (p.share ? p.share + '%' : p.tugs + ' of ' + tugs + ' tugboats') + ' to ' + s.name;
+      if (p.share || (p.tugs >= 1 && p.tugs < tugs)) out.push(p);
+    }
+    return out;
+  }
+
+  api.actions['ai-run'] = function () {
+    if (!canApprove()) return;
+    var rules = {};
+    P.splitRules.forEach(function (r) { if (r.active) rules[r.id] = true; });
+    var lines = ledgerRows();
+    var seen = function (l, x) { return P.splitProposals.some(function (p) { return p.stt === l.stt && p.sub === l.sub && p.kind === x.kind && p.suggest === x.suggest; }); };
+    var stamp = new Date().toLocaleDateString('en-GB') + ' ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    var added = 0;
+    lines.forEach(function (l) {
+      suggestFor(l, rules).forEach(function (x) {
+        if (seen(l, x)) return;
+        P.splitProposals.unshift(Object.assign(x, { id: 's' + Date.now() + '-' + added, stt: l.stt, sub: l.sub, status: 'pending', at: stamp }));
+        added++;
+      });
+    });
+    keep('splitProposals');
+    api.toast(added ? 'AI read ' + plural(lines.length, 'note') + ' · ' + plural(added, 'new suggestion') : 'AI read ' + plural(lines.length, 'note') + ' · nothing new to suggest');
+    if (added) api.go('ledger/ai'); else api.render();
+  };
 
   api.views['ledger/ai'] = function () {
     var list = P.splitProposals.slice().sort(function (a, b) { return (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1); });
     var work = canApprove();
-    return ledgerPage('ledger/ai', 'The AI reads ticket notes against the admin’s rules and proposes; it never splits by itself. YES picks the new customer and creates a sub-ticket.',
-      (list.length ? list.map(function (p) {
-        var l = P.ledger.filter(function (x) { return x.stt === p.stt; })[0] || {};
+    var n = pendingAi();
+    var bar = '<div class="ai-bar">' + (work ? '<button class="lg-ai" data-action="ai-run">' + emoji('✨') + 'AI suggest</button>' : '') +
+      '<span>' + (n ? plural(n, 'suggestion') + ' waiting for review' : 'Nothing waiting for review') + ' · reads the ' + esc(L.months.length ? sortMonths(L.months).join(', ') : 'chosen period') + ' lines</span>' +
+      (work && n ? '<button class="ai-all" data-action="ai-no-all">Decline all</button>' : '') + '</div>';
+    return ledgerPage('ledger/ai', 'Press AI suggest: the AI reads the ticket notes against the AI split rules and lists what it would change. Nothing changes until you accept.',
+      bar + (list.length ? list.map(function (p) {
+        var l = P.ledger.filter(function (x) { return x.stt === p.stt && x.sub === (p.sub || 1); })[0] || P.ledger.filter(function (x) { return x.stt === p.stt; })[0] || {};
         var rule = byId(P.splitRules, p.rule) || {};
-        return '<div class="card ai-card' + (p.status === 'pending' ? '' : ' done') + '"><div class="ai-top"><b>' + esc(p.text) + '</b>' +
-          (p.status === 'pending' ? '<span class="ai-new">waiting</span>' : '<span class="ai-st">' + (p.status === 'accepted' ? 'YES · sub-ticket made' : 'NO · ignored') + '</span>') + '</div>' +
-          '<p class="ai-line">Ticket note: <i>' + esc(l.note || '-') + '</i></p><p class="ai-line">Matched rule: ' + esc(rule.text || '-') + '</p><p class="ai-line muted">' + esc(p.at) + '</p>' +
-          (p.status === 'pending' && !work ? '<p class="ai-line muted">Waiting for an accountant to say YES or NO.</p>' : '') +
-          (p.status === 'pending' && work ? '<div class="two-btns"><button class="pill-btn primary" data-action="ai-yes" data-arg="' + p.id + '">YES</button><button class="pill-btn outline dark" data-action="ai-no" data-arg="' + p.id + '">NO</button></div>' : '') + '</div>';
-      }).join('') : '<p class="adm-empty">No proposals yet.</p>'));
+        return '<div class="card ai-card' + (p.status === 'pending' ? '' : ' done') + '"><div class="ai-top"><b>' + emoji(p.kind === 'invoice' ? '🧾' : '➗') + esc(p.text) + '</b>' +
+          (p.status === 'pending' ? '<span class="ai-new">to review</span>' : '<span class="ai-st">' + (p.status === 'accepted' ? 'Accepted' : 'Declined') + (p.by ? ' · ' + esc(p.by) : '') + '</span>') + '</div>' +
+          '<p class="ai-line">Ticket note: <i>' + esc(l.note || '-') + '</i></p><p class="ai-line">Matched rule: ' + esc(rule.text || '-') + '</p><p class="ai-line muted">Suggested ' + esc(p.at) + '</p>' +
+          (p.status === 'pending' && !work ? '<p class="ai-line muted">Waiting for ADMIN or an accountant to accept or decline.</p>' : '') +
+          (p.status === 'pending' && work ? '<div class="two-btns"><button class="pill-btn primary" data-action="ai-yes" data-arg="' + p.id + '">Accept</button><button class="pill-btn outline dark" data-action="ai-no" data-arg="' + p.id + '">Decline</button></div>' : '') + '</div>';
+      }).join('') : '<p class="adm-empty">No suggestions yet.' + (work ? ' Press ✨ AI suggest to read the notes.' : '') + '</p>'));
   };
+
+  function decide(p, status) {
+    p.status = status;
+    p.by = api.user.name;
+    keep('splitProposals');
+  }
 
   api.actions['ai-yes'] = function (el) {
     if (!canApprove()) return;
     var p = byId(P.splitProposals, el.dataset.arg);
-    // Split the open line of the No. with the most tugboats.
-    var l = P.ledger.filter(function (x) { return x.stt === p.stt && !locked(x); }).sort(function (a, b) { return b.tugs - a.tugs; })[0];
-    if (!l) return api.toast('No. ' + p.stt + ' is invoiced · locked');
-    splitDialog(l, p.suggest, function () { p.status = 'accepted'; keep('splitProposals'); });
+    var l = P.ledger.filter(function (x) { return x.stt === p.stt && x.sub === (p.sub || 1); })[0] ||
+      P.ledger.filter(function (x) { return x.stt === p.stt; }).sort(function (a, b) { return b.tugs - a.tugs; })[0];
+    if (!l) return api.toast('No. ' + p.stt + ' is no longer on the ledger');
+    if (p.kind === 'invoice') {
+      l.invoice = p.suggest;
+      if (l.status === 'pending') l.status = 'provisional';
+      keep('ledger');
+      decide(p, 'accepted');
+      api.render();
+      return api.toast('Invoice customer · ' + custName(p.suggest));
+    }
+    // A split opens the sub-ticket form filled in with the suggestion, to check before it is made.
+    splitDialog(l, p.suggest, function () { decide(p, 'accepted'); }, p.tugs || p.share);
   };
   api.actions['ai-no'] = function (el) {
     if (!canApprove()) return;
-    var p = byId(P.splitProposals, el.dataset.arg);
-    p.status = 'rejected';
-    keep('splitProposals');
+    decide(byId(P.splitProposals, el.dataset.arg), 'rejected');
     api.render();
-    api.toast('Proposal ignored');
+    api.toast('Suggestion declined');
+  };
+  api.actions['ai-no-all'] = function () {
+    if (!canApprove()) return;
+    P.splitProposals.forEach(function (p) { if (p.status === 'pending') decide(p, 'rejected'); });
+    api.render();
+    api.toast('All suggestions declined');
   };
 
   // ---------- admin: customers, agents, tax codes (P1) ----------
@@ -675,7 +854,7 @@
     var table = api.dataTable({
       source: P.customers, noun: 'customer', placeholder: 'Search customer, short name, tax code…',
       list: P.customers.filter(function (c) { return api.matches([c.name, c.short, c.taxCode].join(' ')); }),
-      add: { action: 'cu-new', label: 'Add customer' },
+      add: canWork() ? { action: 'cu-new', label: 'Add customer' } : null,
       cols: [
         { key: 'name', label: 'Customer', sort: 'text', cell: function (c) { return '<b>' + esc(c.name) + '</b> <span class="dt-muted">· ' + esc(c.short) + '</span>'; } },
         { key: 'taxCode', label: 'Tax code', sort: 'text', cell: function (c) {
@@ -687,12 +866,13 @@
         { key: 'defaultAgent', label: 'Default agent', cell: function (c) { return api.dash((byId(P.agents, defaultAgent(c)) || {}).name); } },
         { key: 'accounts', label: 'Client accounts', cell: function (c) { return tagList(c.accounts || []); } }
       ],
-      actions: function (c, i) { return api.btn('', 'data-action="cu-edit" data-arg="' + i + '"', 'Edit'); }
+      tools: canWork() ? '' : viewOnly('customers are edited by ADMIN and accountants'),
+      actions: canWork() ? function (c, i) { return api.btn('', 'data-action="cu-edit" data-arg="' + i + '"', 'Edit'); } : null
     });
     return api.deskPage('Customers', 'Who is invoiced. A linked client account gets its customer and default agent filled in on every ticket.', table +
       '<h3 class="files-title">Client accounts not linked (' + unlinked.length + ')</h3><p class="section-sub" style="margin:-6px 0 10px">Tickets from these accounts need the accountant to fill in the customer.</p>' +
       (unlinked.length ? '<div class="list">' + unlinked.map(function (u) {
-        return '<div class="card lk-card"><div><b>' + esc(u.name) + '</b><span>' + esc(u.email) + '</span></div><button class="pill-btn outline" data-action="cu-link" data-arg="' + esc(u.email) + '">Link…</button></div>';
+        return '<div class="card lk-card"><div><b>' + esc(u.name) + '</b><span>' + esc(u.email) + '</span></div>' + (canWork() ? '<button class="pill-btn outline" data-action="cu-link" data-arg="' + esc(u.email) + '">Link…</button>' : '') + '</div>';
       }).join('') + '</div>' : '<p class="adm-empty">Every client account is linked.</p>'));
   };
 
@@ -709,7 +889,8 @@
   }
   api.defaultAgent = defaultAgent;
 
-  function customerDialog(index) {
+  // onSaved(customer): called after a save (the ledger picker sets the new customer on its line).
+  function customerDialog(index, onSaved) {
     var isNew = index == null;
     var c = isNew ? { vat: 10, agents: [], accounts: [] } : P.customers[index];
     api.editDialog({
@@ -731,6 +912,7 @@
         if (isNew) { row.id = 'c' + Date.now(); P.customers.push(row); } else P.customers[index] = row;
         keep('customers');
         api.toast('Customer saved');
+        if (onSaved) onSaved(row);
       }
     });
   }
@@ -752,14 +934,14 @@
     return api.deskPage('Agents', 'Who orders. An agent can work for several customers, and a customer can have several agents.', api.dataTable({
       source: P.agents, noun: 'agent', placeholder: 'Search agent or contact…',
       list: P.agents.filter(function (a) { return api.matches(a.name + ' ' + a.contact); }),
-      add: { action: 'ag-new', label: 'Add agent' },
+      add: canWork() ? { action: 'ag-new', label: 'Add agent' } : null, tools: canWork() ? '' : viewOnly('agents are edited by ADMIN and accountants'),
       cols: [
         { key: 'name', label: 'Agent', sort: 'text', cell: function (a) { return '<b>' + esc(a.name) + '</b>'; } },
         { key: 'contact', label: 'Contact', sort: 'text' },
         { key: 'phone', label: 'Phone', sort: 'text' },
         { key: 'customers', label: 'Customers', cell: function (a) { return tagList(P.customers.filter(function (c) { return (c.agents || []).indexOf(a.id) >= 0; }).map(function (c) { return c.short; })); } }
       ],
-      actions: function (a, i) { return api.btn('', 'data-action="ag-edit" data-arg="' + i + '"', 'Edit'); }
+      actions: !canWork() ? null : function (a, i) { return api.btn('', 'data-action="ag-edit" data-arg="' + i + '"', 'Edit'); }
     }));
   };
 
@@ -796,7 +978,7 @@
     return api.deskPage('Tax Codes', 'Each customer has one tax code; one tax code may be shared by several customers.', api.dataTable({
       source: P.taxCodes, noun: 'tax code', placeholder: 'Search tax code or legal name…',
       list: P.taxCodes.filter(function (t) { return api.matches(t.code + ' ' + t.legal); }),
-      add: { action: 'tx-new', label: 'Add tax code' },
+      add: canWork() ? { action: 'tx-new', label: 'Add tax code' } : null, tools: canWork() ? '' : viewOnly('tax codes are edited by ADMIN and accountants'),
       cols: [
         { key: 'code', label: 'Tax code', sort: 'text', cell: function (t) { return '<b>' + esc(t.code) + '</b>'; } },
         { key: 'legal', label: 'Legal name', sort: 'text' },
@@ -806,7 +988,7 @@
           return tagList(users) + (users.length > 1 ? '<small class="lg-diff">shared by ' + users.length + ' customers</small>' : '');
         } }
       ],
-      actions: function (t, i) { return api.btn('', 'data-action="tx-edit" data-arg="' + i + '"', 'Edit'); }
+      actions: !canWork() ? null : function (t, i) { return api.btn('', 'data-action="tx-edit" data-arg="' + i + '"', 'Edit'); }
     }));
   };
   function taxDialog(index) {
@@ -833,11 +1015,11 @@
 
   var anyText = '<span class="dt-muted">any</span>';
   api.views['admin/price-table'] = function () {
-    return api.deskPage('Price Table', 'Customer × area / port × service × DWT × LOA, with validity dates. A blank condition matches anything; a renewal is a new row.', api.dataTable({
+    return api.deskPage('Price Table', 'Customer × area / port × service × DWT × LOA. Each price has the day it takes effect, with no end: a new price is a new row with a later date, and the latest one on or before the service day applies. A blank condition matches anything.', api.dataTable({
       source: P.priceRows, noun: 'price row', placeholder: 'Search customer, port, service…',
       list: P.priceRows.filter(function (p) { return api.matches([custName(p.customer), p.area, p.port, svc(p.service).name].join(' ')); }),
-      add: { action: 'pr-new', label: 'Add price' },
-      tools: '<div class="dt-chips"><button data-action="pr-test">' + emoji('🔎') + 'Test a lookup</button></div>',
+      add: canWork() ? { action: 'pr-new', label: 'Add price' } : null,
+      tools: '<div class="dt-chips"><button data-action="pr-test">' + emoji('🔎') + 'Test a lookup</button></div>' + (canWork() ? '' : viewOnly('prices are edited by ADMIN and accountants')),
       cols: [
         { key: 'customer', label: 'Customer', sort: 'text', cell: function (p) { return p.customer ? esc((cust(p.customer) || {}).short) : anyText; } },
         { key: 'port', label: 'Area / port', sort: 'text', cell: function (p) { return p.port ? esc(p.port) : p.area ? esc(p.area) : anyText; } },
@@ -845,9 +1027,12 @@
         { key: 'dwt', label: 'DWT', cell: function (p) { return esc(rangeText('DWT', p.dwtMin, p.dwtMax)); } },
         { key: 'loa', label: 'LOA', cell: function (p) { return esc(rangeText('LOA', p.loaMin, p.loaMax)); } },
         { key: 'price', label: 'Price / tug', sort: 'number', cls: 'num', cell: function (p) { return '<b>' + money(p.price, p.currency) + '</b>'; } },
-        { key: 'from', label: 'Valid', sort: 'datetime', cell: function (p) { return esc(p.from) + ' → ' + esc(p.to || 'open'); } }
+        { key: 'from', label: 'Effective from', sort: 'datetime', cell: function (p) {
+          var later = P.priceRows.filter(function (o) { return o !== p && sameKey(o, p) && dkey(o.from) > dkey(p.from); }).length;
+          return esc(p.from) + (later ? '<small class="lg-diff"' + tip('A row with the same conditions and a later date applies from that day') + '>replaced later</small>' : '');
+        } }
       ],
-      actions: function (p, i) { return api.btn('', 'data-action="pr-edit" data-arg="' + i + '"', 'Edit') + api.btn('danger', 'data-action="pr-del" data-arg="' + i + '"', 'Delete'); }
+      actions: !canWork() ? null : function (p, i) { return api.btn('', 'data-action="pr-edit" data-arg="' + i + '"', 'Edit') + api.btn('danger', 'data-action="pr-del" data-arg="' + i + '"', 'Delete'); }
     }));
   };
 
@@ -860,13 +1045,16 @@
     return lo - hi <= step ? 'adjacent' : 'gap';
   }
 
-  // Real overlaps are blocked; a shared end or a gap only warns.
+  // Same customer, place and service: rows that compete on DWT / LOA.
+  function sameKey(a, b) { return a.customer === b.customer && a.area === b.area && a.port === b.port && a.service === b.service; }
+
+  // Real overlaps are blocked; a shared end or a gap only warns. Only rows taking effect on the same day compete:
+  // a later date is a new version of the price, not an overlap.
   function checkRanges(row, others) {
     var warn = [];
     for (var i = 0; i < others.length; i++) {
       var o = others[i];
-      if (o.customer !== row.customer || o.area !== row.area || o.port !== row.port || o.service !== row.service) continue;
-      if (relation(Number(dkey(row.from)), row.to ? Number(dkey(row.to)) : null, Number(dkey(o.from)), o.to ? Number(dkey(o.to)) : null, 0) === 'gap') continue;
+      if (!sameKey(o, row) || dkey(o.from) !== dkey(row.from)) continue;
       var d = relation(row.dwtMin, row.dwtMax, o.dwtMin, o.dwtMax, 1);
       var l = relation(row.loaMin, row.loaMax, o.loaMin, o.loaMax, 0.01);
       var desc = rangeText('DWT', o.dwtMin, o.dwtMax) + ', ' + rangeText('LOA', o.loaMin, o.loaMax) + ' (' + money(o.price, o.currency) + ')';
@@ -879,7 +1067,7 @@
 
   function priceDialog(index) {
     var isNew = index == null;
-    var p = isNew ? { currency: 'VND', service: 'mano_in', from: '01/01/2026', to: '31/12/2026' } : P.priceRows[index];
+    var p = isNew ? { currency: 'VND', service: 'mano_in', from: '' } : P.priceRows[index];
     var show = function (n) { return n == null ? '' : n; };
     var ports = Object.keys(D.portLocations);
     api.editDialog({
@@ -894,8 +1082,7 @@
         { name: 'loa', label: 'LOA range (m)', type: 'range', unit: 'LOA' },
         { name: 'price', label: 'Price per tugboat', req: true, half: true },
         { name: 'currency', label: 'Currency', type: 'select', half: true, options: P.currencies.map(function (c) { return { value: c.code, label: c.code + ' (' + c.decimals + ' decimals)' }; }) },
-        { name: 'from', label: 'Valid from', req: true, half: true, placeholder: 'dd/mm/yyyy' },
-        { name: 'to', label: 'Valid to', half: true, placeholder: 'dd/mm/yyyy (empty = open)' }
+        { name: 'from', label: 'Effective from', req: true, half: true, placeholder: 'dd/mm/yyyy', hint: 'No end date: a later row with the same conditions replaces it from its own date.' }
       ],
       onSave: function (v, force) {
         var n = {};
@@ -904,9 +1091,10 @@
         if (!n.price || n.price <= 0) return { error: 'The price must be above 0.' };
         if (n.dwtMin != null && n.dwtMax != null && n.dwtMin > n.dwtMax) return { error: 'DWT: the minimum is above the maximum.' };
         if (n.loaMin != null && n.loaMax != null && n.loaMin > n.loaMax) return { error: 'LOA: the minimum is above the maximum.' };
-        if (!dkey(v.from) || (v.to && !dkey(v.to))) return { error: 'Dates are dd/mm/yyyy.' };
+        if (!dkey(v.from)) return { error: 'The date is dd/mm/yyyy.' };
         if (v.port && v.area && D.portLocations[v.port] !== v.area) return { error: 'Port ' + v.port + ' is not in ' + v.area + '. Set the port or the area, not both.' };
-        var row = Object.assign({}, p, { customer: v.customer, area: v.port ? '' : v.area, port: v.port, service: v.service, currency: v.currency, from: v.from, to: v.to }, n);
+        var row = Object.assign({}, p, { customer: v.customer, area: v.port ? '' : v.area, port: v.port, service: v.service, currency: v.currency, from: v.from }, n);
+        delete row.to;
         var check = checkRanges(row, P.priceRows.filter(function (x) { return x !== p; }));
         if (check && check.error) return check;
         if (check && check.warn && !force) return check;
@@ -937,7 +1125,7 @@
         var r = lookup({ customer: v.customer, service: v.service, port: v.port, date: v.date, dwt: parseNum(v.dwt), loa: parseNum(v.loa) });
         var out = document.querySelector('.pr-result');
         out.className = 'pr-result ' + (r.error ? 'err' : 'ok');
-        out.textContent = r.error ? r.error : money(r.row.price, r.row.currency) + ' per tugboat · ' + [r.row.customer ? custName(r.row.customer) : 'any customer', r.row.port || r.row.area || 'any place', rangeText('DWT', r.row.dwtMin, r.row.dwtMax), rangeText('LOA', r.row.loaMin, r.row.loaMax)].join(' · ');
+        out.textContent = r.error ? r.error : money(r.row.price, r.row.currency) + ' per tugboat · ' + [r.row.customer ? custName(r.row.customer) : 'any customer', r.row.port || r.row.area || 'any place', rangeText('DWT', r.row.dwtMin, r.row.dwtMax), rangeText('LOA', r.row.loaMin, r.row.loaMax), 'effective from ' + r.row.from].join(' · ');
         return { stay: true }; // the result shows in the dialog, which stays open
       }
     });
@@ -953,19 +1141,19 @@
   api.views['admin/currencies'] = function () {
     return api.deskPage('Currencies & Rates', 'Decimals follow the currency (VND 0, USD 2), in the app and in Excel.', api.dataTable({
       source: P.currencies, list: P.currencies.filter(function (c) { return api.matches(c.code + ' ' + c.name); }), noun: 'currency', placeholder: 'Search currency…',
-      tools: rateTabs('cur'), add: { action: 'cur-new', label: 'Add currency' },
+      tools: rateTabs('cur') + (canWork() ? '' : viewOnly('edited by ADMIN and accountants')), add: canWork() ? { action: 'cur-new', label: 'Add currency' } : null,
       cols: [{ key: 'code', label: 'Code', sort: 'text', cell: function (c) { return '<b>' + esc(c.code) + '</b>'; } }, { key: 'name', label: 'Name', sort: 'text' }, { key: 'decimals', label: 'Decimals', sort: 'number', cls: 'num' },
         { key: 'ex', label: 'Example', cls: 'num', cell: function (c) { return money(1234567.891, c.code); } }],
-      actions: function (c, i) { return api.btn('', 'data-action="cur-edit" data-arg="' + i + '"', 'Edit'); }
+      actions: !canWork() ? null : function (c, i) { return api.btn('', 'data-action="cur-edit" data-arg="' + i + '"', 'Edit'); }
     }));
   };
   api.views['admin/fx-rates'] = function () {
     return api.deskPage('Currencies & Rates', 'One rate per day; a line uses the rate of its service day (or the last one before it).', api.dataTable({
       source: P.fxRates, list: P.fxRates.filter(function (r) { return api.matches(r.date + ' ' + r.from); }), noun: 'rate', placeholder: 'Search date…', sort: ['date', -1],
-      tools: rateTabs('fx'), add: { action: 'fx-new', label: 'Add rate' },
+      tools: rateTabs('fx') + (canWork() ? '' : viewOnly('edited by ADMIN and accountants')), add: canWork() ? { action: 'fx-new', label: 'Add rate' } : null,
       cols: [{ key: 'date', label: 'Date', sort: 'datetime' }, { key: 'pair', label: 'Pair', cell: function (r) { return esc(r.from + ' → ' + r.to); } },
         { key: 'rate', label: 'Rate', sort: 'number', cls: 'num', cell: function (r) { return '<b>' + num(r.rate) + '</b>'; } }],
-      actions: function (r, i) { return api.btn('danger', 'data-action="fx-del" data-arg="' + i + '"', 'Delete'); }
+      actions: !canWork() ? null : function (r, i) { return api.btn('danger', 'data-action="fx-del" data-arg="' + i + '"', 'Delete'); }
     }));
   };
   function currencyDialog(index) {
@@ -1009,15 +1197,15 @@
   // ---------- admin: AI split rules (P5) ----------
 
   api.views['admin/split-rules'] = function () {
-    return api.deskPage('AI Split Rules', 'Write, in plain words, when an invoice line should be split. The AI only proposes; an accountant says YES or NO.', api.dataTable({
+    return api.deskPage('AI Split Rules', 'Write, in plain words, when an invoice line should be split. The ledger’s ✨ AI suggest button reads ticket notes against the active rules; ADMIN or an accountant accepts or declines each suggestion.', api.dataTable({
       source: P.splitRules, list: P.splitRules.filter(function (r) { return api.matches(r.text); }), noun: 'rule', placeholder: 'Search rules…',
-      add: { action: 'ru-new', label: 'Add rule' },
+      add: canRules() ? { action: 'ru-new', label: 'Add rule' } : null, tools: canRules() ? '' : viewOnly('ADMIN writes the rules; the ledger’s AI suggest button uses the active ones'),
       cols: [
         { key: 'n', label: '#', cell: function (r, i) { return 'R' + (i + 1); } },
         { key: 'text', label: 'Rule', cls: 'wrap', cell: function (r) { return esc(r.text); } },
-        { key: 'active', label: 'Active', cell: function (r, i) { return '<button class="dt-toggle' + (r.active ? ' on' : '') + '" data-action="ru-toggle" data-arg="' + i + '" aria-label="Active">' + (r.active ? 'On' : 'Off') + '</button>'; } }
+        { key: 'active', label: 'Active', cell: function (r, i) { return '<button class="dt-toggle' + (r.active ? ' on' : '') + '"' + (canRules() ? '' : ' disabled') + ' data-action="ru-toggle" data-arg="' + i + '" aria-label="Active">' + (r.active ? 'On' : 'Off') + '</button>'; } }
       ],
-      actions: function (r, i) { return api.btn('', 'data-action="ru-edit" data-arg="' + i + '"', 'Edit') + api.btn('danger', 'data-action="ru-del" data-arg="' + i + '"', 'Delete'); }
+      actions: !canRules() ? null : function (r, i) { return api.btn('', 'data-action="ru-edit" data-arg="' + i + '"', 'Edit') + api.btn('danger', 'data-action="ru-del" data-arg="' + i + '"', 'Delete'); }
     }));
   };
   function ruleDialog(index) {
@@ -1038,7 +1226,7 @@
   api.actions['ru-del'] = function (el) {
     api.confirmDialog('Delete this split rule?', 'The AI stops using it. This cannot be undone.', 'Delete', function () { P.splitRules.splice(Number(el.dataset.arg), 1); keep('splitRules'); api.render(); api.toast('Split rule deleted'); });
   };
-  api.actions['ru-toggle'] = function (el) { var r = P.splitRules[Number(el.dataset.arg)]; r.active = !r.active; keep('splitRules'); api.render(); };
+  api.actions['ru-toggle'] = function (el) { if (!canRules()) return; var r = P.splitRules[Number(el.dataset.arg)]; r.active = !r.active; keep('splitRules'); api.render(); };
 
   // ---------- admin: discounts (P6) ----------
 
@@ -1046,14 +1234,14 @@
     var sc = P.discountScope;
     var table = api.dataTable({
       source: P.discountTiers, list: P.discountTiers.filter(function (t) { return api.matches(custName(t.customer) || 'all customers'); }), noun: 'tier', placeholder: 'Search customer…',
-      add: { action: 'di-new', label: 'Add tier' },
+      add: canWork() ? { action: 'di-new', label: 'Add tier' } : null, tools: (canWork() ? '' : viewOnly('edited by ADMIN and accountants')),
       cols: [
         { key: 'customer', label: 'Customer', sort: 'text', cell: function (t) { return t.customer ? esc(custName(t.customer)) : anyText; } },
         { key: 'fromCount', label: 'Moves in the month', sort: 'number', cell: function (t) { return t.toCount == null ? t.fromCount + ' or more' : t.fromCount + ' – ' + t.toCount; } },
         { key: 'percent', label: 'Discount', sort: 'number', cls: 'num', cell: function (t) { return '<b>' + t.percent + '%</b>'; } },
         { key: 'now', label: 'This month', cls: 'num', cell: function (t) { return t.customer ? movesInMonth(t.customer, currentMonth()) + ' moves' : api.dash(''); } }
       ],
-      actions: function (t, i) { return api.btn('', 'data-action="di-edit" data-arg="' + i + '"', 'Edit') + api.btn('danger', 'data-action="di-del" data-arg="' + i + '"', 'Delete'); }
+      actions: !canWork() ? null : function (t, i) { return api.btn('', 'data-action="di-edit" data-arg="' + i + '"', 'Edit') + api.btn('danger', 'data-action="di-del" data-arg="' + i + '"', 'Delete'); }
     });
     var svcChips = function (key) {
       return '<div class="col-chips">' + D.services.map(function (s) {
@@ -1093,6 +1281,7 @@
     api.confirmDialog('Delete this discount tier?', 'This cannot be undone.', 'Delete', function () { P.discountTiers.splice(Number(el.dataset.arg), 1); keep('discountTiers'); api.render(); api.toast('Discount tier deleted'); });
   };
   api.actions['di-scope'] = function (el) {
+    if (!canWork()) return;
     var p = el.dataset.arg.split(':');
     var list = P.discountScope[p[0]];
     var at = list.indexOf(p[1]);

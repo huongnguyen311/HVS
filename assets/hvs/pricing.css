@@ -1047,3 +1047,143 @@ button.lg-pick {
   justify-content: center;
   min-height: 36px;
 }
+
+/* ---------- 05/10 feedback: SUB, currency select, AI suggest, New customer, ledger tables ---------- */
+
+/* SUB = {No.}_{sub}; a split-off line (_2, _3…) is tinted. */
+.lg-subno {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: #374151;
+}
+
+.lg-subno.split {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.lg-cur {
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid var(--line, #e5e7eb);
+  border-radius: 6px;
+  background: #fff;
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.lg-ai,
+.ai-bar .lg-ai {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  margin-top: 8px;
+  padding: 0 14px;
+  border: 1px solid #c4b5fd;
+  border-radius: 16px;
+  background: #f5f3ff;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6d28d9;
+}
+
+.lg-ai-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid #ddd6fe;
+  border-radius: 8px;
+  background: #f5f3ff;
+  font-size: 12.5px;
+  line-height: 17px;
+  text-align: left;
+  color: #5b21b6;
+}
+
+.lg-ai-bar span {
+  flex: 1;
+  min-width: 0;
+}
+
+.lg-ai-bar > b {
+  flex: none;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.ai-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin-bottom: 12px;
+  font-size: 12.5px;
+  color: #6b7280;
+}
+
+.ai-bar .lg-ai {
+  margin-top: 0;
+}
+
+.ai-bar span {
+  flex: 1;
+  min-width: 160px;
+}
+
+.ai-bar .ai-all {
+  font-size: 12.5px;
+  color: var(--blue);
+}
+
+.pk-head .pk-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 5px 10px;
+  border: 1px dashed #93c5fd;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--blue);
+}
+
+.pk-head .pk-new svg {
+  width: 14px;
+  height: 14px;
+}
+
+.dt-toggle[disabled] {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.drawer-h {
+  margin: 4px 25px 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9ca3af;
+}
+
+body.desk .dk-tables {
+  margin-top: 8px;
+}
+
+/* AI suggest sits in the filter-chip row, after Dates. */
+.lg-tools .dt-chips .lg-ai {
+  flex: none;
+  margin-top: 0;
+  height: auto;
+  border-color: #c4b5fd;
+  background: #f5f3ff;
+  color: #6d28d9;
+}

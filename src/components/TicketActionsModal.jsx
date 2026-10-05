@@ -4,6 +4,7 @@ import { Alert, AutoComplete, Button, Flex, Input, Modal, Popconfirm, Select, Sp
 import { CheckCircleOutlined, CopyOutlined, CloseCircleOutlined, ExclamationCircleFilled, FlagOutlined, PlusOutlined, SwapOutlined } from '@ant-design/icons';
 import { clientItems, ctxFilter, ctxOptions, fmtMin, fromDayjs, pobMin, portItems, ticketId, vesselItems } from '../board/model.jsx';
 import { BOARD_DAY0, twins } from '../board/timeline';
+import D from '../data';
 import { STATUS, canMove, canRun, isAdmin, isTerminal } from '../board/status';
 import PobField, { pobPatch, pobValue } from './PobField';
 import { FuelInput, fuelDigits } from './FuelModal';
@@ -57,9 +58,10 @@ const Field = ({ label, children, style }) => (
 
 // Ticket actions…: fix unrecognised reference data, edit the ticket, and confirm / close it.
 // ADMIN and MOD act; CAPTAIN opens the same window read only; closed tickets are locked.
-// Hold, cancellation requests and the admin override live in the row's status menu on the board.
+// Cancellation requests (the ticket is on hold meanwhile) and any other status live in the row's status menu.
 // history: opened from History (D4), operational data only, so no fuel figure (fuel feeds pricing).
-export default function TicketActionsModal({ row: r, rows = [], role, mods, tag = '', onTag, history = false, onPatch, onStatus, onClose }) {
+// needMod: opened from the status menu's Confirmed on a ticket with no MOD yet; the MOD field is flagged.
+export default function TicketActionsModal({ row: r, rows = [], role, mods, tag = '', onTag, history = false, needMod = false, onPatch, onStatus, onClose }) {
   const term = isTerminal(r.status);
   const run = canRun(role);
   const ro = term || !run;
@@ -77,11 +79,10 @@ export default function TicketActionsModal({ row: r, rows = [], role, mods, tag 
     internal: r.internal || ''
   };
   const [f, setF] = useState(initial);
-  const [mod, setMod] = useState(r.mod || undefined); // the MOD picked on New ticket, if any
-  const [why, setWhy] = useState(''); // optional reason for Not valid
+  const [mod, setMod] = useState(r.mod || undefined); // the MOD on duty: picked on New ticket or here, changeable any time
   const set = (patch) => setF((x) => ({ ...x, ...patch }));
   // Any edit, including picking a different MOD on duty, enables Save.
-  const dirty = JSON.stringify(f) !== JSON.stringify(initial) || (!!mod && mod !== r.mod);
+  const dirty = JSON.stringify(f) !== JSON.stringify(initial) || (mod || '') !== (r.mod || '');
 
   function save() {
     if (onTag && f.tag.trim() !== tag) onTag(f.tag.trim().toUpperCase());
@@ -97,7 +98,7 @@ export default function TicketActionsModal({ row: r, rows = [], role, mods, tag 
         ...pobPatch('pobOut', f.pobOut),
         note: f.note.trim(),
         internal: f.internal.trim(),
-        ...(mod ? { mod } : {})
+        mod: mod || ''
       },
       'Ticket saved'
     );
@@ -175,6 +176,18 @@ export default function TicketActionsModal({ row: r, rows = [], role, mods, tag 
           </Field>
         </Flex>
         <Flex gap={10} wrap>
+          <Field label={needMod && !mod ? 'MOD on duty * (needed to confirm)' : 'MOD on duty'} style={{ flex: '1 1 200px' }}>
+            <Select
+              style={{ width: '100%' }}
+              value={mod}
+              disabled={ro}
+              placeholder="Select the MOD on duty"
+              allowClear
+              status={needMod && !mod ? 'warning' : undefined}
+              options={mods.map((u) => ({ value: u.name, label: `${u.name} · ${u.phone}` }))}
+              onChange={setMod}
+            />
+          </Field>
           <Field label="Agency" style={{ flex: '1 1 200px' }}>
             <AutoComplete
               style={{ width: '100%' }}
@@ -191,8 +204,17 @@ export default function TicketActionsModal({ row: r, rows = [], role, mods, tag 
         <div className="pbm-special">
           <h4 className="pbm-special-title">Special case</h4>
           <Flex gap={10} wrap>
+            {/* Only the shipping lines the pricing supports (D.shippingLines). */}
             <Field label="Shipping line tag (vessel)" style={{ flex: '1 1 140px' }}>
-              <Input value={f.tag} disabled={ro} placeholder="e.g. MAERSK" allowClear onChange={(e) => set({ tag: e.target.value })} />
+              <Select
+                style={{ width: '100%' }}
+                value={f.tag || undefined}
+                disabled={ro}
+                placeholder="None"
+                allowClear
+                options={D.shippingLines.map((x) => ({ value: x, label: x }))}
+                onChange={(v) => set({ tag: v || '' })}
+              />
             </Field>
             {!history && (
               <Field label="Fuel figure" style={{ flex: '1 1 200px' }}>
@@ -217,29 +239,25 @@ export default function TicketActionsModal({ row: r, rows = [], role, mods, tag 
           <h4>Status</h4>
           {r.mod && <small className="pbm-sec-note">MOD: {r.mod}</small>}
         </div>
-        {/* The ticket as it is now (status, plus the hold / cancel-request marks beside it). */}
+        {/* The ticket as it is now (status, plus the on-hold mark while the client asks to cancel). */}
         <Flex gap={4} wrap className="pbm-status-now">
           <Tag style={{ color: st.fg, background: st.bg, borderColor: st.bd, marginInlineEnd: 0 }}>{st.label}</Tag>
-          {r.hold && <Tag color="gold">On hold</Tag>}
-          {r.cancelReq && <Tag color="orange">Cancel requested</Tag>}
+          {r.cancelReq && <Tag color="gold">Cancel requested</Tag>}
         </Flex>
       </div>
 
       {/* Sticky footer: status actions on the left, Save on the right. */}
       {!ro && (
         <div className="pbm-savebar">
-          {open && !can('CONFIRMED') && <small className="pbm-bar-note">Updated by the client · an admin re-confirms it</small>}
-          {open && can('CONFIRMED') && (
-            <Select className="pbm-bar-mod" placeholder="MOD on duty *" value={mod} onChange={setMod} options={mods.map((u) => ({ value: u.name, label: `${u.name} · ${u.phone}` }))} />
-          )}
+          {open && !can('CONFIRMED') && <small className="pbm-bar-note">Updated by the client · an admin confirms it</small>}
           <div className="pbm-bar-btns">
             {can('NOT_VALID') && (
             <Popconfirm
               title="Mark as not valid?"
-              description={<Input.TextArea className="pbm-why" rows={2} value={why} placeholder="Reason (optional)" onChange={(e) => setWhy(e.target.value)} />}
+              description="The ticket closes. Only an admin can reopen it."
               okText="Not valid"
               okButtonProps={{ danger: true }}
-              onConfirm={() => status({ status: 'NOT_VALID', cancelReq: false, hold: null, invalidReason: why.trim() }, 'Marked not valid')}
+              onConfirm={() => status({ status: 'NOT_VALID', cancelReq: false }, 'Marked not valid')}
             >
               <Button danger icon={<CloseCircleOutlined />}>
                 Not valid
@@ -263,9 +281,8 @@ export default function TicketActionsModal({ row: r, rows = [], role, mods, tag 
               can('DONE') && (
               <Popconfirm
                 title="Mark as done?"
-                description={r.hold ? 'Hold will be released.' : null}
                 okText="Done"
-                onConfirm={() => status({ status: 'DONE', hold: null }, r.hold ? 'Marked done · hold released' : 'Marked done')}
+                onConfirm={() => status({ status: 'DONE' }, 'Marked done')}
               >
                 <Button type="primary" icon={<FlagOutlined />}>
                   Done

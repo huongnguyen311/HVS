@@ -13,22 +13,25 @@ export const FuelInput = ({ value, onChange, ...rest }) => (
   <Input {...rest} value={value} inputMode="numeric" placeholder="e.g. 12000" suffix="L" onChange={(e) => onChange(fuelDigits(e.target.value))} />
 );
 
-// Fuel figure (click the vessel name on the board): the vessel's fuel for this trip, in litres.
-// The same value is edited in Ticket actions.
-export default function FuelModal({ row: r, onSave, onClose }) {
+// Vessel window (click the vessel name on the board): the vessel's card (info) with this trip's fuel figure,
+// in litres, typed straight in. The same value is edited in Ticket actions.
+export default function FuelModal({ row: r, info, onSave, onClose }) {
   const [fuel, setFuel] = useState(fuelDigits(r.fuel));
   const save = () => {
     onSave({ fuel }, fuel ? 'Fuel figure saved' : 'Fuel figure cleared');
     onClose();
   };
   return (
-    <Modal open title="Fuel figure" okText="Save" onOk={save} onCancel={onClose} destroyOnHidden>
-      <div className="pbm-head">
-        <b>
-          {r.vessel} · {r.port}
-        </b>
-        <Text type="secondary">No. {ticketId(r.no)}</Text>
-      </div>
+    <Modal open title="Vessel" okText="Save" onOk={save} onCancel={onClose} destroyOnHidden width={420}>
+      {info}
+      {!info && (
+        <div className="pbm-head">
+          <b>
+            {r.vessel} · {r.port}
+          </b>
+          <Text type="secondary">No. {ticketId(r.no)}</Text>
+        </div>
+      )}
       <label className="pbm-label">Fuel figure (litres)</label>
       <FuelInput autoFocus value={fuel} onChange={setFuel} onPressEnter={save} />
     </Modal>

@@ -32,7 +32,7 @@ window.HVS_DATA = {
   // widths are fixed (content truncates, never widens). name = the header tooltip, as on the prototype.
   boardColumns: [
     { key: 'port', label: 'PORT', name: 'PORT', width: 92 },
-    { key: 'status', label: 'STATUS', name: 'Status', width: 144 },
+    { key: 'status', label: 'STATUS', name: 'Status', width: 164 },
     { key: 'no', label: 'NO.', name: 'No. (numbered per month)', width: 62 },
     { key: 'agency', label: 'AGENCY/OWNER', name: 'Agency/Owner', width: 112 },
     { key: 'mod', label: 'MOD', name: 'MOD', width: 96 },
@@ -141,7 +141,8 @@ window.HVS_DATA = {
   ],
 
   // P2 · currencies (decimals per currency), daily exchange rates, and the price table. A blank condition
-  // (customer, area, port, DWT, LOA) matches anything; ranges include both ends; a contract renewal is a new row.
+  // (customer, area, port, DWT, LOA) matches anything; ranges include both ends. from = the day the price takes effect
+  // (no end date): a renewal is a new row with a later date, and the latest one on or before the service day applies.
   currencies: [
     { code: 'VND', name: 'Vietnamese dong', decimals: 0 },
     { code: 'USD', name: 'US dollar', decimals: 2 }
@@ -157,14 +158,15 @@ window.HVS_DATA = {
     { date: '02/10/2026', from: 'USD', to: 'VND', rate: 25480 }
   ],
   priceRows: [
-    { id: 'p1', customer: '', area: 'Cai Mep - Thi Vai', port: '', service: 'mano_in', dwtMin: null, dwtMax: 80000, loaMin: null, loaMax: null, price: 18500000, currency: 'VND', from: '01/01/2026', to: '31/12/2026' },
-    { id: 'p2', customer: '', area: 'Cai Mep - Thi Vai', port: '', service: 'mano_in', dwtMin: 80001, dwtMax: null, loaMin: null, loaMax: null, price: 26000000, currency: 'VND', from: '01/01/2026', to: '31/12/2026' },
-    { id: 'p3', customer: 'c1', area: '', port: 'GML', service: 'mano_in', dwtMin: null, dwtMax: null, loaMin: 125, loaMax: 250, price: 720, currency: 'USD', from: '01/07/2026', to: '30/06/2027' },
-    { id: 'p4', customer: 'c1', area: '', port: 'GML', service: 'mano_in', dwtMin: null, dwtMax: null, loaMin: 251, loaMax: null, price: 980, currency: 'USD', from: '01/07/2026', to: '30/06/2027' },
-    { id: 'p5', customer: '', area: 'Cai Mep - Thi Vai', port: '', service: 'mano_out', dwtMin: null, dwtMax: null, loaMin: null, loaMax: null, price: 17000000, currency: 'VND', from: '01/01/2026', to: '31/12/2026' },
-    { id: 'p6', customer: 'c3', area: '', port: '', service: 'mano_out', dwtMin: 100000, dwtMax: null, loaMin: null, loaMax: null, price: 1150, currency: 'USD', from: '01/01/2026', to: '31/12/2026' },
-    { id: 'p7', customer: '', area: '', port: '', service: 'shifting', dwtMin: null, dwtMax: null, loaMin: null, loaMax: 200, price: 9500000, currency: 'VND', from: '01/01/2026', to: '31/12/2026' },
-    { id: 'p8', customer: '', area: '', port: '', service: 'special', dwtMin: null, dwtMax: null, loaMin: null, loaMax: null, price: 12000000, currency: 'VND', from: '01/01/2026', to: '31/12/2026' }
+    { id: 'p1', customer: '', area: 'Cai Mep - Thi Vai', port: '', service: 'mano_in', dwtMin: null, dwtMax: 80000, loaMin: null, loaMax: null, price: 18500000, currency: 'VND', from: '01/01/2026' },
+    { id: 'p2', customer: '', area: 'Cai Mep - Thi Vai', port: '', service: 'mano_in', dwtMin: 80001, dwtMax: null, loaMin: null, loaMax: null, price: 26000000, currency: 'VND', from: '01/01/2026' },
+    { id: 'p3', customer: 'c1', area: '', port: 'GML', service: 'mano_in', dwtMin: null, dwtMax: null, loaMin: 125, loaMax: 250, price: 720, currency: 'USD', from: '01/07/2026' },
+    { id: 'p4', customer: 'c1', area: '', port: 'GML', service: 'mano_in', dwtMin: null, dwtMax: null, loaMin: 251, loaMax: null, price: 980, currency: 'USD', from: '01/07/2026' },
+    { id: 'p5', customer: '', area: 'Cai Mep - Thi Vai', port: '', service: 'mano_out', dwtMin: null, dwtMax: null, loaMin: null, loaMax: null, price: 17000000, currency: 'VND', from: '01/01/2026' },
+    { id: 'p6', customer: 'c3', area: '', port: '', service: 'mano_out', dwtMin: 100000, dwtMax: null, loaMin: null, loaMax: null, price: 1150, currency: 'USD', from: '01/01/2026' },
+    { id: 'p7', customer: '', area: '', port: '', service: 'shifting', dwtMin: null, dwtMax: null, loaMin: null, loaMax: 200, price: 9500000, currency: 'VND', from: '01/01/2026' },
+    { id: 'p8', customer: '', area: '', port: '', service: 'special', dwtMin: null, dwtMax: null, loaMin: null, loaMax: null, price: 12000000, currency: 'VND', from: '01/01/2026' },
+    { id: 'p9', customer: '', area: 'Cai Mep - Thi Vai', port: '', service: 'mano_in', dwtMin: null, dwtMax: 80000, loaMin: null, loaMax: null, price: 19200000, currency: 'VND', from: '01/09/2026' }
   ],
 
   // P3 · ledger rows (one per priced service; sub > 1 = a sub-ticket split from the same No.).
@@ -187,12 +189,12 @@ window.HVS_DATA = {
     { stt: 113, sub: 1, date: '05/09/2026', trip: '1610', vessel: 'SHUN LONG', dwt: 32500, loa: 189.9, port: 'CU LAO TAO', service: 'shifting', tugs: 1, customer: 'c7', invoice: 'c7', override: null, status: 'invoiced', note: '' },
     { stt: 114, sub: 1, date: '08/09/2026', trip: '1615', vessel: 'ONE IBIS', dwt: 139335, loa: 364.15, port: 'TCIT', service: 'mano_in', tugs: 2, customer: 'c4', invoice: 'c4', override: null, status: 'invoiced', note: '' },
     { stt: 115, sub: 1, date: '11/09/2026', trip: '1622', vessel: 'LETO', dwt: 42200, loa: 220.3, port: 'GML', service: 'mano_out', tugs: 2, customer: 'c1', invoice: 'c1', override: null, status: 'invoiced', note: '' },
-    { stt: 116, sub: 1, date: '14/09/2026', trip: '1628', vessel: 'MSC TRIESTE', dwt: 182145, loa: 365.5, port: 'SSIT', service: 'mano_in', tugs: 2, customer: 'c3', invoice: 'c3', override: null, status: 'confirmed', note: '' },
+    { stt: 116, sub: 1, date: '14/09/2026', trip: '1628', vessel: 'MSC TRIESTE', dwt: 182145, loa: 365.5, port: 'SSIT', service: 'mano_in', tugs: 2, customer: 'c3', invoice: 'c3', override: null, status: 'confirmed', note: 'Invoice to: MSC / 50% CGM' },
     { stt: 117, sub: 1, date: '18/09/2026', trip: '1633', vessel: 'GOLDEN HOPE', dwt: 74910, loa: 225, port: 'GML', service: 'mano_in', tugs: 1, customer: 'c1', invoice: 'c1', override: null, status: 'confirmed', note: '' },
     { stt: 117, sub: 2, date: '18/09/2026', trip: '1633', vessel: 'GOLDEN HOPE', dwt: 74910, loa: 225, port: 'GML', service: 'mano_in', tugs: 1, customer: 'c1', invoice: 'c2', override: null, status: 'confirmed', note: 'Split 1 tug to CGM' },
-    { stt: 118, sub: 1, date: '21/09/2026', trip: '1640', vessel: 'CSCL LONG BEACH', dwt: 111787, loa: 336.67, port: 'TCIT', service: 'mano_in', tugs: 3, customer: 'c5', invoice: 'c5', override: null, status: 'confirmed', note: '' },
+    { stt: 118, sub: 1, date: '21/09/2026', trip: '1640', vessel: 'CSCL LONG BEACH', dwt: 111787, loa: 336.67, port: 'TCIT', service: 'mano_in', tugs: 3, customer: 'c5', invoice: 'c5', override: null, status: 'confirmed', note: '1 tug for HG/ONE' },
     { stt: 119, sub: 1, date: '24/09/2026', trip: '1646', vessel: 'MAERSK BOSTON', dwt: 53634, loa: 293.85, port: 'GML', service: 'special', tugs: 2, customer: 'c4', invoice: 'c4', override: null, status: 'confirmed', note: 'Special job' },
-    { stt: 120, sub: 1, date: '26/09/2026', trip: '1651', vessel: 'ZHENG RONG', dwt: 81729, loa: 229, port: 'CMIT', service: 'mano_out', tugs: 2, customer: 'c6', invoice: 'c6', override: null, status: 'confirmed', note: '' },
+    { stt: 120, sub: 1, date: '26/09/2026', trip: '1651', vessel: 'ZHENG RONG', dwt: 81729, loa: 229, port: 'CMIT', service: 'mano_out', tugs: 2, customer: 'c6', invoice: 'c6', override: null, status: 'confirmed', note: 'Invoice to: D. & S. CO., LTD' },
     { stt: 121, sub: 1, date: '28/09/2026', trip: '1655', vessel: 'PORT OSHIMA', dwt: 64624, loa: 199.99, port: 'CU LAO TAO', service: 'shifting', tugs: 1, customer: 'c7', invoice: 'c7', override: null, status: 'provisional', note: '' },
     { stt: 122, sub: 1, date: '30/09/2026', trip: '1660', vessel: 'ORIENTAL BREEZE', dwt: 43673, loa: 189.94, port: 'SSIT', service: 'standby_duty', tugs: 1, customer: 'c4', invoice: 'c4', override: null, status: 'provisional', note: 'On duty' },
     { stt: 123, sub: 1, date: '01/10/2026', trip: '1662', vessel: 'APOLLO DIGNITY', dwt: 13507, loa: 122.92, port: 'GML', service: 'mano_in', tugs: 2, customer: 'c1', invoice: 'c1', override: null, status: 'provisional', note: '' },
@@ -200,13 +202,14 @@ window.HVS_DATA = {
     { stt: 125, sub: 1, date: '02/10/2026', trip: '1665', vessel: 'CMA CGM JULES VERNE', dwt: 186796, loa: 396, port: 'GML', service: 'mano_out', tugs: 3, customer: 'c1', invoice: 'c1', override: null, status: 'pending', note: '' },
     { stt: 126, sub: 1, date: '02/10/2026', trip: '1667', vessel: 'ONE FREEDOM', dwt: 155928, loa: 366, port: 'TCIT', service: 'mano_in', tugs: 2, customer: 'c4', invoice: 'c4', override: null, status: 'pending', note: '' }
   ],
-  // A→P: [letter, key, label (English, on the app and as the Excel header)]. P · Agent: who ordered on the customer's behalf (EXPORT.md's AGENT column).
+  // A→T: [letter, key, label (English, on the app and as the Excel header)]. SUB = {No.}_{sub}, the original line is _1.
+  // Agent: who ordered on the customer's behalf (EXPORT.md's AGENT column).
   ledgerColumns: [
-    ['A', 'stt', 'No.'], ['B', 'date', 'Date'], ['C', 'vessel', 'Vessel'], ['D', 'dwt', 'DWT'], ['E', 'loa', 'LOA'],
-    ['F', 'port', 'Port'], ['G', 'service', 'Service'], ['H', 'tugs', 'Tugs'], ['I', 'customer', 'Ordered by'],
-    ['J', 'invoice', 'Invoice customer'], ['K', 'price', 'Unit price'], ['L', 'override', 'Override'],
-    ['M', 'currency', 'Currency'], ['N', 'amount', 'Amount'], ['O', 'status', 'Billing status'],
-    ['P', 'agent', 'Agent']
+    ['A', 'stt', 'No.'], ['B', 'sub', 'SUB'], ['C', 'date', 'Date'], ['D', 'port', 'Port'], ['E', 'agent', 'Agent'],
+    ['F', 'vessel', 'Vessel'], ['G', 'dwt', 'DWT'], ['H', 'loa', 'LOA'], ['I', 'service', 'Service'], ['J', 'tugs', 'Tugs'],
+    ['K', 'customer', 'Ordered by'], ['L', 'invoice', 'Invoice customer'], ['M', 'price', 'Price'], ['N', 'override', 'Override'],
+    ['O', 'currency', 'Currency'], ['P', 'fx', 'Exchange rate'], ['Q', 'beforeVat', 'Price before VAT'], ['R', 'vat', 'VAT'],
+    ['S', 'amount', 'Total amount'], ['T', 'status', 'Billing status']
   ],
   billingStatus: {
     pending: { label: 'Pending', color: '#ea580c' },
@@ -227,15 +230,14 @@ window.HVS_DATA = {
     { name: 'ledger_2026-08-22_daily.xlsx', kind: 'cron', rows: 7, by: 'Daily job', at: '22/08/2026 23:59' }
   ],
 
-  // P5 · rules the admin writes in plain words; the AI reads ticket notes and proposes a split, never splits by itself.
+  // P5 · rules in plain words. The ledger's ✨ AI suggest button reads ticket notes against the active rules and lists
+  // suggestions (set the invoice customer, or split off a sub-ticket); ADMIN or an accountant accepts or declines each one.
   splitRules: [
     { id: 'r1', text: 'If the note says the invoice goes to two companies (e.g. "50% CGM"), split the line between them.', active: true },
     { id: 'r2', text: 'If the note names a different company after "Invoice to", invoice that company instead of the ordering customer.', active: true },
     { id: 'r3', text: 'Escort boats ordered by the pilot station are invoiced to the vessel owner.', active: false }
   ],
-  splitProposals: [
-    { id: 's1', stt: 104, rule: 'r1', text: 'Split No. 104 · MSC NEW YORK: half to CGM LOGISTICS', suggest: 'c2', status: 'pending', at: '24/08/2026 21:05' }
-  ],
+  splitProposals: [],
 
   // P6 · discounts by number of moves in the month (per customer), and what counts.
   discountTiers: [
@@ -350,9 +352,9 @@ window.HVS_DATA = {
     { key: 'MOD', label: 'Mod', sub: 'Runs the plan board: confirm, assign, hold, POB, done', home: 'board', routes: ['tickets', 'board', 'history'] },
     { key: 'CAPTAIN', label: 'Captain', sub: 'Views the whole plan board, read only', home: 'board', routes: ['board'] },
     { key: 'CLIENT', label: 'Client', sub: 'Own tickets: create, edit, request cancellation', home: 'tickets', routes: ['tickets', 'history'] },
-    { key: 'HEAD_ACCOUNTANT', label: 'Head accountant', sub: 'Ledger: pricing, sub-tickets, AI split approval, export', home: 'ledger', routes: ['ledger'] },
-    { key: 'ACCOUNTANT', label: 'Accountant', sub: 'Ledger: pricing, sub-tickets, AI split approval, export', home: 'ledger', routes: ['ledger'] },
-    { key: 'SUPPORT_ACCOUNTANT', label: 'Support accountant', sub: 'Ledger, read only (prices included), no export', home: 'ledger', routes: ['ledger'] }
+    { key: 'HEAD_ACCOUNTANT', label: 'Head accountant', sub: 'Ledger and its tables (customers, agents, tax codes, prices, rates, discounts), AI review, export', home: 'ledger', routes: ['ledger', 'admin/customers', 'admin/agents', 'admin/tax-codes', 'admin/price-table', 'admin/currencies', 'admin/fx-rates', 'admin/discounts', 'admin/split-rules'] },
+    { key: 'ACCOUNTANT', label: 'Accountant', sub: 'Ledger and its tables (customers, agents, tax codes, prices, rates, discounts), AI review, export', home: 'ledger', routes: ['ledger', 'admin/customers', 'admin/agents', 'admin/tax-codes', 'admin/price-table', 'admin/currencies', 'admin/fx-rates', 'admin/discounts', 'admin/split-rules'] },
+    { key: 'SUPPORT_ACCOUNTANT', label: 'Support accountant', sub: 'Ledger and its tables, view only (prices included), no export', home: 'ledger', routes: ['ledger', 'admin/customers', 'admin/agents', 'admin/tax-codes', 'admin/price-table', 'admin/currencies', 'admin/fx-rates', 'admin/discounts', 'admin/split-rules'] }
   ],
 
   vessels: [

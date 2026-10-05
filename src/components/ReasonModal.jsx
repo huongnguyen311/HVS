@@ -3,9 +3,9 @@ import { Input, Modal, Select, Typography } from 'antd';
 
 const { Text } = Typography;
 
-// A board action that needs a written reason: hold, reject a cancellation, admin override.
-// chips = quick reasons that fill the box; options = a required choice (the override's target status);
-// optional = the reason may stay empty (Mark not valid).
+// A board action that needs a written reason: cancelling a ticket, rejecting a cancellation request.
+// chips = quick reasons that fill the box; options = a required choice;
+// optional = the reason may stay empty.
 export default function ReasonModal({ title, head, text, label, placeholder, chips, options, optionLabel, okText, danger, optional, onOk, onClose }) {
   const [reason, setReason] = useState('');
   const [pick, setPick] = useState(undefined);

@@ -1,9 +1,11 @@
 import D from '../data';
 
-// Two-day window of half-hour cells. Day 0 is the day the board opens on (the demo's today is 02/10/2026,
-// so it opens on 01/10 – 02/10); every board time is counted from its midnight. The year is the demo's, 2026.
+// Two-day window of half-hour cells. Day 0 is the first day of the demo data (the board opens on BOARD_TODAY,
+// 02/10/2026); every board time is counted from day 0's midnight. The year is the demo's, 2026.
 export const SLOTS = 96;
 export const BOARD_DAY0 = '2026-10-01';
+// The demo's "today": the date picker's default and its Today button (the board opens on today → tomorrow).
+export const BOARD_TODAY = '2026-10-02';
 const DAY_CELLS = 48;
 const ORIGIN = Date.UTC(2026, 9, 1);
 const pad = (n) => String(n).padStart(2, '0');

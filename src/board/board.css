@@ -170,8 +170,10 @@
   text-align: left;
 }
 
-.pb-table td.pb-c-status .spill + .hpill {
-  margin-left: 4px;
+/* Cancel requested: the status pill says "Cancel requested" in place of the status, with an amber frame. */
+.pb-table .spill.creq {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 1px #f59e0b inset;
 }
 
 .pb-table td.pb-c-pobIn,
@@ -192,13 +194,21 @@
   color: #1463ff;
 }
 
-.pb-table td.pb-c-note {
+/* .ant-table-tbody > tr > td matches the base td rule's specificity, so its padding and "…" do not win here. */
+.pb-table .ant-table-tbody > tr > td.pb-c-note {
   color: #374151;
+  text-overflow: clip;
 }
 
-.pb-table td.pb-c-actions {
+.pb-table td.pb-c-note .t {
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.pb-table .ant-table-tbody > tr > td.pb-c-actions {
   padding: 0;
   text-align: left;
+  text-overflow: clip;
 }
 
 .pb-act {
@@ -274,6 +284,38 @@
   height: var(--pb-h);
   /* Blocks stack among themselves (catalogue stack order) but never above the frozen VESSEL column. */
   isolation: isolate;
+}
+
+/* Timeline hover (.pb-wrap.hov, --hs = the half-hour cell under the pointer): the row and that column light up,
+   down every row and in the hour header, under the blocks. */
+.pb-wrap.hov .pb-table td.pb-c-timeline .bt::before,
+.pb-wrap.hov .bh-time::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--hs) * var(--c));
+  width: var(--c);
+  background: rgba(20, 99, 255, 0.09);
+  pointer-events: none;
+}
+
+.pb-wrap.hov .pb-table td.pb-c-timeline .bt::before {
+  z-index: 0;
+}
+
+.pb-wrap.hov .bh-time {
+  position: relative;
+}
+
+.pb-wrap.hov .bh-time::after {
+  top: 18px;
+  background: rgba(20, 99, 255, 0.16);
+}
+
+.pb-wrap.hov .pb-table .ant-table-tbody > tr.pb-row:hover > td,
+.pb-wrap.hov .pb-table .ant-table-tbody > tr.pb-row:hover > td .bt {
+  box-shadow: inset 0 0 0 9999px rgba(20, 99, 255, 0.06);
 }
 
 /* Realtime flash (.b-row.flash). */
@@ -897,7 +939,8 @@ body.desk .blegend-more {
 }
 
 /* Legend popover: sized for the phone (16px gutters), services in two columns, marks as a key / meaning list. */
-.blegend-pop {
+/* Phone: full width under the legend. Desktop places it under the legend line (BoardBar placement). */
+body:not(.desk) .blegend-pop {
   left: 16px !important;
   width: calc(100vw - 32px);
   max-width: none;
@@ -971,6 +1014,52 @@ body.desk .blegend-more {
 
 .blegend-marks > :nth-child(odd) {
   justify-self: start;
+}
+
+/* Desktop: a compact card under the right end of the legend line (not the phone's full-width sheet),
+   services and marks side by side, split by a hairline. */
+body.desk .blegend-pop {
+  width: auto;
+}
+
+body.desk .blegend-pop .ant-popover-inner {
+  padding: 10px 14px 12px;
+}
+
+body.desk .blegend-pop .ant-popover-title {
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+body.desk .blegend-help {
+  display: grid;
+  grid-template-rows: auto auto;
+  grid-auto-flow: column;
+  grid-auto-columns: auto;
+  column-gap: 16px;
+  font-size: 12px;
+}
+
+body.desk .blegend-help h5 {
+  margin: 0;
+  padding-bottom: 6px;
+}
+
+body.desk .blegend-grid {
+  grid-template-columns: auto;
+  align-content: start;
+  gap: 4px;
+}
+
+body.desk .blegend-help h5:nth-of-type(2),
+body.desk .blegend-marks {
+  padding-left: 16px;
+  border-left: 1px solid #e5e7eb;
+}
+
+body.desk .blegend-marks {
+  align-content: start;
+  gap: 4px 8px;
 }
 
 /* ---------- filter button (beside the gear) and the Filters sheet ---------- */
@@ -1160,16 +1249,14 @@ body.desk .blegend-more {
   white-space: normal;
 }
 
+/* Shipping-line tag: plain text with a little padding, no colour or frame of its own. */
 .pb-vtag {
   flex: none;
   margin-left: 4px;
   padding: 0 4px;
-  border-radius: 3px;
-  background: #1e3a8a;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 14px;
-  color: #fff;
 }
 
 .pbm-special {
@@ -1398,6 +1485,15 @@ body.desk .blegend-more {
   cursor: pointer;
 }
 
+/* Desktop: the same details as a hover tooltip (Tip.jsx). */
+.tip-pop .ant-popover-inner {
+  max-width: 300px;
+}
+
+.tip-pop .tip-act {
+  margin-top: 10px;
+}
+
 .tip-body {
   font-size: 13px;
   line-height: 1.5;
@@ -1583,4 +1679,71 @@ body.desk .blegend-more {
   font-size: 13px;
   line-height: 18px;
   color: #374151;
+}
+
+/* Board date picker (.bdate): the range text between the day arrows opens a calendar; same look as the old label. */
+.bdate .bdate-pick {
+  width: 104px;
+  padding: 0 2px;
+  cursor: pointer;
+}
+
+.bdate .bdate-pick input {
+  padding: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.bdate-today {
+  width: 100%;
+  padding: 6px 0;
+  font-weight: 600;
+  color: #1463ff;
+}
+
+/* Services… window: one row per service (colour swatch, name, window, tugboats), Edit / Remove on the right. */
+.pbm-svcs {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pbm-svcs li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid #f0f0f0;
+}
+
+.pbm-svcs li > i {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 3px;
+  border: 1px solid;
+  border-radius: 3px;
+}
+
+.pbm-svcs li > div {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.pbm-svcs li > div span,
+.pbm-svcs li > div small {
+  color: #6b7280;
+}
+
+.pbm-svc-acts {
+  flex: none;
+  display: flex;
+  gap: 6px;
 }

@@ -6,8 +6,8 @@ import { BOARD_DAY0, SLOTS, absSlot, isTerminal, jobSvc, minutesAt, sheetMin, sl
 export const PENDING = 'NEW TICKET / PENDING';
 export const UNASSIGNED = 'Unassigned location';
 
-// No. as the board prints it: #1847 (numbered per month).
-export const ticketId = (no) => '#' + no;
+// No. as the board prints it: 1847 (numbered per month), no '#'.
+export const ticketId = (no) => String(no);
 export const locationOf = (port) => D.portLocations[port] || UNASSIGNED;
 export const knownPorts = () => Object.keys(D.portLocations);
 export const clientOf = (nick) => D.boardClients.find((c) => c.nick === nick);

@@ -48,61 +48,7 @@
 
   api.actionSheet = actionSheet;
 
-  // ---------- ticket hold (H1–H7) ----------
-
-  function holdDialog(key, label, done) {
-    var html = '<div class="mask light" data-action="close"></div><form class="dialog" data-hold-form><h3>Hold ticket</h3>' +
-      '<p class="dlg-text">' + esc(label) + ' stays in its current status, paused. The client gets a push notification with the reason.</p>' +
-      '<label class="field-label">Reason<span class="req">*</span></label><div class="reason-chips">' + D.holdReasons.map(function (r) {
-        return '<button type="button" data-reason="' + esc(r) + '">' + esc(r) + '</button>';
-      }).join('') + '</div>' +
-      '<textarea class="text-area" name="reason" placeholder="e.g. Vessel delayed, ETA 14:00 tomorrow" required></textarea>' +
-      '<div class="hold-err" hidden>A hold needs a reason</div>' +
-      '<div class="actions"><button type="button" class="pill-btn outline dark" data-action="close">Cancel</button><button type="submit" class="pill-btn primary">Hold</button></div></form>';
-    var wrap = api.openOverlay(html, 'dialog', '#a8a8a8');
-    var form = wrap.querySelector('[data-hold-form]');
-    form.style.top = Math.max(60, (window.innerHeight - form.offsetHeight) / 2 - 30) + 'px';
-    form.addEventListener('click', function (e) {
-      var b = e.target.closest('[data-reason]');
-      if (!b) return;
-      form.reason.value = b.dataset.reason;
-      form.querySelectorAll('[data-reason]').forEach(function (x) { x.classList.toggle('on', x === b); });
-    });
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      var reason = form.reason.value.trim();
-      form.querySelector('.hold-err').hidden = !!reason;
-      if (!reason) return;
-      state.holds[key] = { reason: reason, by: api.user.name, at: Date.now() };
-      api.save('holds', state.holds);
-      notify('⏸', 'Ticket on hold ' + label.replace(/^#\S+ · /, ''), ['Reason: ' + reason, 'Client notified by push'], key);
-      api.closeOverlay();
-      (done || api.render)();
-      api.toast('On hold · client notified');
-    });
-  }
-
-  function releaseHold(key, label, done) {
-    delete state.holds[key];
-    api.save('holds', state.holds);
-    notify('▶️', 'Ticket resumed ' + label, ['The hold was released', 'Client notified by push'], key);
-    (done || api.render)();
-    api.toast('Hold released · client notified');
-  }
-
-  // Hold / release reach the client who owns the ticket ('t:<id>' → its creator), and the operations side.
-  function notify(icon, title, lines, key) {
-    var t = state.tickets.filter(function (x) { return 't:' + x.id === key; })[0];
-    api.notify(icon, title, lines, ['ADMIN', 'MOD', 'CLIENT'], t ? 'by:' + t.by : '');
-  }
-
-  // Hold / release from the ticket form (tickets list keys are 't:<id>').
-  api.actions['hold-ticket'] = function (el) {
-    holdDialog(el.dataset.holdKey, el.dataset.holdLabel);
-  };
-  api.actions['release-hold'] = function (el) {
-    releaseHold(el.dataset.holdKey, el.dataset.holdLabel);
-  };
+  // No manual hold (MOD / ADMIN): a ticket is on hold only while its client asks to cancel (app.js held: the ticket shows "Cancel requested").
 
   // ---------- history dashboard (D4) ----------
 

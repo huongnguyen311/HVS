@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { App, Dropdown, Table } from 'antd';
 import { CopyOutlined, PlusOutlined, WarningOutlined } from '@ant-design/icons';
@@ -5,8 +6,8 @@ import D from '../data';
 import { loadBoard, loadConfig, loadMods, loadRole, loadTags, loadUserName, roleDefault, saveBoard, saveConfig, saveTags } from '../board/store';
 import { STATUS, STATUS_KEYS, canMove, canRun, isAdmin, isTerminal } from '../board/status';
 import { rowPasses, sectionPasses } from '../board/filters';
-import { SLOTS, conflicts, twins } from '../board/timeline';
-import { PENDING, clientOf, fmtMin, inWindow, locationOf, placeRow, pobMin, rangeLabel, ticketId } from '../board/model.jsx';
+import { BOARD_DAY0, BOARD_TODAY, SLOTS, conflicts, jobSvc, twins } from '../board/timeline';
+import { PENDING, fmtMin, inWindow, locationOf, placeRow, pobMin, pobTitle, ticketId } from '../board/model.jsx';
 import { Pob } from '../board/cells';
 import Tip from './Tip';
 import { Down, More } from '../board/icons';
@@ -20,8 +21,19 @@ import FuelModal, { fmtFuel } from './FuelModal';
 import NewTicketSheet from './NewTicketSheet';
 import NotesModal from './NotesModal';
 import ReasonModal from './ReasonModal';
+import ServicesModal from './ServicesModal';
 import TicketActionsModal from './TicketActionsModal';
 import { TimelineCell, TimelineHeader } from './Timeline';
+
+// Width the NOTE column needs for its longest shown note (internal first, else the client's), at the cell font.
+let measureCtx;
+function noteWidth(rows) {
+  if (typeof document === 'undefined') return 0;
+  measureCtx = measureCtx || document.createElement('canvas').getContext('2d');
+  measureCtx.font = '11.5px ' + getComputedStyle(document.body).fontFamily;
+  const w = rows.reduce((n, r) => Math.max(n, measureCtx.measureText(r.internal || r.note || '').width + (r.internal ? 14 : 0)), 0);
+  return Math.ceil(w) + 14; // cell padding + border
+}
 
 // rowSpan per row for the merged PORT cell; pending rows never merge (they are an arrival queue).
 function portSpans(rows, merge) {
@@ -59,26 +71,22 @@ const Info = ({ title, rows, hint }) => (
 );
 const count = (n, one) => `${n} ${one}${n === 1 ? '' : 's'}`;
 
-// Status dropdown items per status and role (ADMIN / MOD run the board).
+// Status dropdown items per status and role (ADMIN / MOD run the board): every other status, picked directly.
+// Only Cancelled asks for a reason. What a MOD may not do (canMove) is still listed, greyed out, so they see
+// it exists and who does it. Hold is not a board action: a ticket is on hold only while its client asks to cancel.
 function statusItems(row, role) {
-  const admin = isAdmin(role);
-  if (isTerminal(row.status)) {
-    return admin ? [{ key: 'override', label: 'Override status…' }] : [{ key: 'none', label: 'Closed. Only an admin can reopen it', disabled: true }];
-  }
-  // What a MOD may not do (canMove) is still listed, greyed out, so they see it exists and who does it.
+  if (isTerminal(row.status) && !isAdmin(role)) return [{ key: 'none', label: 'Closed. Only an admin can reopen it', disabled: true }];
   const can = (to) => canMove(role, row.status, to);
-  const adminOnly = (key, label, extra) => (can(extra.to) ? { key, label, ...extra.item } : { key, label: label + ' · admin only', disabled: true });
   const items = [];
   if (row.cancelReq) {
     // Cancelling a CONFIRMED (or updated) ticket is approved by an admin only.
-    items.push(adminOnly('approve', 'Approve cancellation', { to: 'CANCELLED' }), adminOnly('reject', 'Reject cancellation…', { to: 'CANCELLED' }), { type: 'divider' });
+    const gate = (key, label) => (can('CANCELLED') ? { key, label } : { key, label: label + ' · admin only', disabled: true });
+    items.push(gate('approve', 'Approve cancellation'), gate('reject', 'Reject cancellation…'), { type: 'divider' });
   }
-  // Confirm needs the MOD on duty, which is picked in Ticket actions.
-  if (row.status === 'CONFIRMED') items.push(adminOnly('done', 'Mark done', { to: 'DONE' }));
-  else items.push(adminOnly('confirm', row.status === 'NEW_UPDATE' ? 'Re-confirm…' : 'Confirm…', { to: 'CONFIRMED' }));
-  items.push(row.hold ? { key: 'unhold', label: 'Release hold' } : { key: 'hold', label: 'Hold…' });
-  items.push(adminOnly('invalid', 'Mark not valid', { to: 'NOT_VALID', item: { danger: true } }));
-  if (admin) items.push({ type: 'divider' }, { key: 'override', label: 'Override status…' });
+  STATUS_KEYS.filter((k) => k !== row.status).forEach((k) => {
+    const label = k === 'CANCELLED' ? 'Cancelled…' : statusLabel(k);
+    items.push(can(k) ? { key: 'to:' + k, label, danger: k === 'NOT_VALID' || k === 'CANCELLED' } : { key: 'to:' + k, label: label + ' · admin only', disabled: true });
+  });
   return items;
 }
 
@@ -99,7 +107,8 @@ export default function PlanBoardTable({ toast, notify }) {
   const [overlay, setOverlay] = useState(null); // { type, no, ...props }
   const [settings, setSettings] = useState(null); // null | 'columns' (Board display) | 'filters'
   const [newOpen, setNewOpen] = useState(false);
-  const [day, setDay] = useState(0); // first day of the 2-day window, 0 = BOARD_DAY0 (01/10/2026)
+  // First day of the 2-day window, counted from BOARD_DAY0 (01/10/2026); opens on today (BOARD_TODAY).
+  const [day, setDay] = useState(() => dayjs(BOARD_TODAY).diff(dayjs(BOARD_DAY0), 'day'));
   const [tags, setTags] = useState(loadTags); // P6: shipping-line tag per vessel
   const [sugs, setSugs] = useState(null); // AI suggestions waiting for accept / reject; null = AI not run
 
@@ -114,6 +123,38 @@ export default function PlanBoardTable({ toast, notify }) {
     if (!body || !cell) return;
     const left = cell.offsetLeft;
     if (left + cell.offsetWidth > body.clientWidth) body.scrollLeft = left;
+  }, []);
+
+  // The header never scrolls on its own: a wheel / trackpad swipe over it scrolls the body instead, and the
+  // header follows the body (antd keeps them in step). Captured on the wrap so antd's own header wheel
+  // handler, which moved the header past a body that then snapped back, never runs.
+  // Hovering the timeline lights up the row and the half-hour column under the pointer (--hs, CSS .hov).
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return undefined;
+    const wheel = (e) => {
+      if (!e.target.closest('.ant-table-header')) return;
+      const body = wrap.querySelector('.ant-table-body');
+      e.preventDefault();
+      e.stopPropagation();
+      if (body) body.scrollBy({ left: e.shiftKey ? e.deltaY : e.deltaX, top: e.shiftKey ? 0 : e.deltaY });
+    };
+    const move = (e) => {
+      const bt = e.target.closest && e.target.closest('.pb-c-timeline .bt');
+      if (!bt) return wrap.classList.remove('hov');
+      const slot = Math.floor(((e.clientX - bt.getBoundingClientRect().left) / bt.offsetWidth) * SLOTS);
+      wrap.style.setProperty('--hs', Math.max(0, Math.min(SLOTS - 1, slot)));
+      wrap.classList.add('hov');
+    };
+    const leave = () => wrap.classList.remove('hov');
+    wrap.addEventListener('wheel', wheel, { capture: true, passive: false });
+    wrap.addEventListener('mousemove', move);
+    wrap.addEventListener('mouseleave', leave);
+    return () => {
+      wrap.removeEventListener('wheel', wheel, { capture: true });
+      wrap.removeEventListener('mousemove', move);
+      wrap.removeEventListener('mouseleave', leave);
+    };
   }, []);
 
   // The table body runs down to the bottom of the screen, measured rather than calc(100vh - …): on a phone
@@ -196,22 +237,15 @@ export default function PlanBoardTable({ toast, notify }) {
   const tag = (row) => `${row.vessel} · No. ${ticketId(row.no)}`;
 
   function approve(row) {
-    patchRow(row.no, { status: 'CANCELLED', cancelReq: false, hold: null, cancelReason: row.cancelReqReason || '' }, 'Cancellation approved · client notified');
+    patchRow(row.no, { status: 'CANCELLED', cancelReq: false, cancelReason: row.cancelReqReason || '' }, 'Cancellation approved · client notified');
     push('✅', 'Cancellation approved ' + row.vessel, ['No. ' + ticketId(row.no) + ' is now cancelled', 'Client notified by push'], CLIENT_TOO, 'agency:' + row.agency);
   }
 
-  function release(row) {
-    patchRow(row.no, { hold: null }, 'Hold released · client notified');
-    push('▶️', 'Ticket resumed ' + row.vessel, ['The hold was released', 'Client notified by push'], CLIENT_TOO, 'agency:' + row.agency);
-  }
-
-  function markDone(row) {
-    modal.confirm({
-      title: 'Mark this ticket as DONE?',
-      content: row.hold ? `It is on hold (${row.hold.reason}). Marking it done releases the hold. Only an admin can reopen a closed ticket.` : 'Only an admin can reopen a closed ticket.',
-      okText: 'Mark done',
-      onOk: () => patchRow(row.no, { status: 'DONE', hold: null }, row.hold ? 'Ticket marked as done · hold released' : 'Ticket marked as done')
-    });
+  // A status picked from the menu. Confirmed needs the MOD on duty (Ticket actions asks for one when the
+  // ticket has none); Cancelled needs a reason; the rest apply at once. Every change is kept in statusLog.
+  function setStatus(row, to, extra = {}) {
+    const entry = { from: row.status, to, by: loadUserName(), at: Date.now(), ...(extra.cancelReason ? { reason: extra.cancelReason } : {}) };
+    patchRow(row.no, (r) => ({ status: to, cancelReq: false, ...extra, statusLog: (r.statusLog || []).concat([entry]) }), `Status: ${statusLabel(row.status)} → ${statusLabel(to)}`);
   }
 
   function action(row, key) {
@@ -219,36 +253,28 @@ export default function PlanBoardTable({ toast, notify }) {
       modal.confirm({ title: 'Approve the cancellation?', content: 'The ticket becomes CANCELLED and the client is notified.', okText: 'Approve', onOk: () => approve(row) });
     }
     if (key === 'approve-now') approve(row);
-    if (key === 'unhold') release(row);
-    if (key === 'confirm') open('actions', row);
-    if (key === 'done') markDone(row);
-    if (key === 'hold' || key === 'reject' || key === 'override' || key === 'invalid') open('reason', row, { mode: key });
+    if (key === 'reject') open('reason', row, { mode: 'reject' });
+    if (!key.startsWith('to:')) return;
+    const to = key.slice(3);
+    if (to === 'CANCELLED') return open('reason', row, { mode: 'cancel' });
+    if (to === 'CONFIRMED' && !row.mod) return open('actions', row, { needMod: true });
+    setStatus(row, to);
   }
 
-  function onReason(row, mode, reason, to) {
-    const by = loadUserName();
-    if (mode === 'hold') {
-      patchRow(row.no, { hold: { reason, by, at: Date.now() } }, 'On hold · client notified');
-      push('⏸', 'Ticket on hold ' + row.vessel, ['Reason: ' + reason, 'Client notified by push'], CLIENT_TOO, 'agency:' + row.agency);
-    }
+  function onReason(row, mode, reason) {
     if (mode === 'reject') {
       patchRow(row.no, { cancelReq: false, cancelRejectNote: reason }, 'Cancellation rejected · client notified');
       push('↩️', 'Cancellation rejected ' + row.vessel, ['Note: ' + reason, 'The ticket keeps its status · client notified'], CLIENT_TOO, 'agency:' + row.agency);
     }
-    if (mode === 'invalid') patchRow(row.no, { status: 'NOT_VALID', cancelReq: false, hold: null, invalidReason: reason }, 'Ticket marked as not valid');
-    if (mode === 'override') {
-      const entry = { from: row.status, to, reason, by, at: Date.now() };
-      patchRow(
-        row.no,
-        (r) => ({ status: to, cancelReq: false, hold: isTerminal(to) ? null : r.hold, overrides: (r.overrides || []).concat([entry]) }),
-        `Status overridden: ${statusLabel(row.status)} → ${statusLabel(to)}`
-      );
+    if (mode === 'cancel') {
+      setStatus(row, 'CANCELLED', { cancelReason: reason });
+      push('🚫', 'Ticket cancelled ' + row.vessel, ['Reason: ' + reason, 'Client notified by push'], CLIENT_TOO, 'agency:' + row.agency);
     }
   }
 
   function createTicket(t) {
     const no = String(Math.max(...board.flatMap((s) => s.rows).map((r) => Number(r.no) || 0)) + 1);
-    const row = { mod: '', internal: '', pobInNever: false, pobOutNever: false, pobInSigned: false, pobOutSigned: false, jobs: [], ship: [], hold: null, ...t, no, status: 'PENDING', cancelReq: false };
+    const row = { mod: '', internal: '', pobInNever: false, pobOutNever: false, pobInSigned: false, pobOutSigned: false, jobs: [], ship: [], ...t, no, status: 'PENDING', cancelReq: false };
     updateBoard((b) => placeRow(b, row), `Ticket ${ticketId(no)} created`);
   }
 
@@ -313,8 +339,17 @@ export default function PlanBoardTable({ toast, notify }) {
 
   const toggle = (key) => setCollapsed((c) => (c.includes(key) ? c.filter((k) => k !== key) : [...c, key]));
 
-  const defs = D.boardColumns.filter((c) => visible.includes(c.key));
+  // NOTE is never clipped: the column widens to its longest note, kept on one line.
+  const noteW = useMemo(() => noteWidth(allRows), [allRows]);
+  const defs = D.boardColumns.filter((c) => visible.includes(c.key)).map((c) => (c.key === 'note' ? { ...c, width: Math.max(c.width, noteW) } : c));
   const open = (type, row, extra) => setOverlay({ type, no: row.no, ...extra });
+  // After Add service: the assign window for the new block. Escort opens the ticket's Mano block at that POB
+  // (a new one when it has none) with escort ticked.
+  const nextAssign = (row, draft) => {
+    if (!draft.escort) return open('assign', row, { draft });
+    const ji = (row.jobs || []).findIndex((j) => j.kind !== 'escort' && (jobSvc(j) || {}).at === draft.escort);
+    open('assign', row, ji >= 0 ? { ji, escortOn: true } : { draft, escortOn: true });
+  };
 
   const alertCell = (row, field, what) => (
     <Tip title={`${what} not recognised`} content={`“${row[field]}” is not recognised by the system. An ADMIN or MOD can create it or map it to an existing one.`}>
@@ -352,6 +387,38 @@ export default function PlanBoardTable({ toast, notify }) {
     </span>
   );
 
+  const mods = loadMods();
+  const pobCell = (row, field, label) => {
+    const body = (
+      <span>
+        <Pob row={row} field={field} bare />
+      </span>
+    );
+    const value = (row[field] || '').replace(/\s*✓$/, '');
+    if (row[field + 'Never']) return <Tip desk title={label} content="This POB will not happen.">{body}</Tip>;
+    if (!value) return body;
+    return (
+      <Tip desk title={label} content={<Info title={pobTitle(value)} rows={[['Signed by pilot', row[field + 'Signed'] ? 'Yes' : 'No']]} />}>
+        {body}
+      </Tip>
+    );
+  };
+
+  // The vessel card: on hover (desktop) / tap (CAPTAIN), and at the top of the Vessel window, where the fuel
+  // figure is typed in instead of listed.
+  const vesselInfo = (row, withFuel) => (
+    <Info
+      title={row.vessel}
+      rows={[
+        ['LOA', row.loa && row.loa + ' m'],
+        ['DWT', row.dwt],
+        ['Shipping line', tags[row.vessel]],
+        ['Fuel figure', withFuel ? fmtFuel(row.fuel) : ''],
+        ['On the board', count(allRows.filter((x) => x.vessel === row.vessel).length, 'ticket')]
+      ]}
+    />
+  );
+
   const cell = {
     port: (row) =>
       row.portAlert ? (
@@ -372,51 +439,21 @@ export default function PlanBoardTable({ toast, notify }) {
           <span className="t">{row.port}</span>
         </Tip>
       ),
-    agency: (row) => {
-      if (!row.agency) return <span className="t" />;
-      const c = clientOf(row.agency);
-      return (
-        <Tip
-          title="Agency"
-          content={
-            <Info
-              title={c ? c.agency : row.agency}
-              rows={[
-                ['Short name', c && c.agency !== row.agency ? row.agency : ''],
-                ['On the board', count(allRows.filter((x) => x.agency === row.agency).length, 'ticket')]
-              ]}
-              hint={c ? null : 'Not in the client list'}
-            />
-          }
-        >
-          <span className="t">{row.agency}</span>
-        </Tip>
-      );
-    },
+    // No., Agency / Owner, LOA and DWT are plain text: no hover card (user, 05/10).
+    agency: (row) => <span className="t">{row.agency}</span>,
     vessel: (row) =>
       row.vesselAlert ? (
         alertCell(row, 'vessel', 'Vessel')
       ) : twin[row.no] ? (
         twinCell(row)
       ) : (
-        // Tapping the name opens its card; the card's button opens the fuel figure (same value as in Ticket actions).
+        // ADMIN / MOD: tapping the name opens the Vessel window with the fuel figure input right in it (same value
+        // as in Ticket actions); desktop also shows the card on hover. Others get the card only.
         <Tip
           title="Vessel"
-          action={run && !isTerminal(row.status) ? { label: row.fuel ? 'Edit fuel figure' : 'Enter fuel figure', onClick: () => open('fuel', row) } : null}
-          content={
-            <Info
-              title={row.vessel}
-              rows={[
-                ['LOA', row.loa && row.loa + ' m'],
-                ['DWT', row.dwt],
-                ['Shipping line', tags[row.vessel]],
-                ['Fuel figure', fmtFuel(row.fuel)],
-                ['On the board', count(allRows.filter((x) => x.vessel === row.vessel).length, 'ticket')]
-              ]}
-            />
-          }
+          content={vesselInfo(row, true)}
         >
-          <span className={'pb-vessel' + (run && !isTerminal(row.status) ? ' on' : '')}>
+          <span className={'pb-vessel' + (run && !isTerminal(row.status) ? ' on' : '')} onClick={run && !isTerminal(row.status) ? () => open('fuel', row) : undefined}>
             <span className="t">{row.vessel}</span>
             {row.fuel && <span className="pb-fuel">⛽</span>}
             {tags[row.vessel] && <span className="pb-vtag">{tags[row.vessel]}</span>}
@@ -427,28 +464,42 @@ export default function PlanBoardTable({ toast, notify }) {
     status: (row) => {
       const st = STATUS[row.status] || STATUS.PENDING;
       const pill = (
-        <button type="button" className="spill" style={{ color: st.fg, background: st.bg, borderColor: st.bd }} disabled={!run}>
-          {st.label}
-          {row.cancelReq ? ' · cancel?' : ''}
+        // The client asked to cancel: the pill says "Cancel requested" in place of the status (amber frame) until
+        // the request is approved or rejected; the status itself shows in the tip.
+        <button
+          type="button"
+          className={'spill' + (row.cancelReq ? ' creq' : '')}
+          style={{ color: st.fg, background: st.bg, borderColor: row.cancelReq ? undefined : st.bd }}
+          disabled={!run}
+        >
+          {row.cancelReq ? 'Cancel requested' : st.label}
           {run ? ' ▾' : ''}
         </button>
       );
-      // Hold is a mark beside the status, never a status of its own.
-      const hold = row.hold && (
-        <Tip title="On hold" content={row.hold.reason}>
-          <span className="hpill">⏸</span>
-        </Tip>
+      const last = (row.statusLog || []).slice(-1)[0];
+      const tip = (
+        <Info
+          title={st.label}
+          rows={[
+            ['Cancel requested', row.cancelReq ? row.cancelReqReason || 'Yes' : ''],
+            ['MOD', row.mod],
+            ['Changed by', last && last.by],
+            ['Reason', row.status === 'CANCELLED' ? row.cancelReason : row.status === 'NOT_VALID' ? row.invalidReason : '']
+          ]}
+          hint={isTerminal(row.status) ? 'Closed. Only an admin can reopen it' : null}
+        />
       );
       return (
         <>
-          {run ? (
-            <Dropdown trigger={['click']} menu={{ items: statusItems(row, role), onClick: ({ key }) => action(row, key) }}>
-              {pill}
-            </Dropdown>
-          ) : (
-            pill
-          )}
-          {hold}
+          <Tip desk title="Status" content={tip}>
+            {run ? (
+              <Dropdown trigger={['click']} menu={{ items: statusItems(row, role), onClick: ({ key }) => action(row, key) }}>
+                {pill}
+              </Dropdown>
+            ) : (
+              pill
+            )}
+          </Tip>
         </>
       );
     },
@@ -484,8 +535,19 @@ export default function PlanBoardTable({ toast, notify }) {
         </Tip>
       );
     },
-    pobIn: (row) => <Pob row={row} field="pobIn" />,
-    pobOut: (row) => <Pob row={row} field="pobOut" />,
+    pobIn: (row) => pobCell(row, 'pobIn', 'POB in'),
+    pobOut: (row) => pobCell(row, 'pobOut', 'POB out'),
+    mod: (row) => {
+      if (!row.mod) return <span className="t" />;
+      const m = mods.find((u) => u.name === row.mod);
+      return (
+        <Tip desk title="MOD on duty" content={<Info title={row.mod} rows={[['Phone', m && m.phone], ['Email', m && m.email]]} />}>
+          <span className="t">{row.mod}</span>
+        </Tip>
+      );
+    },
+    loa: (row) => <span className="t">{row.loa}</span>,
+    dwt: (row) => <span className="t">{row.dwt}</span>,
     // Always shown; a captain gets the ticket read only.
     actions: (row) => (
       <Dropdown
@@ -498,10 +560,14 @@ export default function PlanBoardTable({ toast, notify }) {
             ? [
                 { key: 'actions', label: 'Ticket actions…' },
                 { key: 'notes', label: 'Notes…', disabled: isTerminal(row.status) },
+                { key: 'services', label: 'Services…' },
                 // Closed tickets (done / cancelled / not valid) take no new services or tugboats.
                 ...(isTerminal(row.status) ? [] : [{ key: 'service', label: 'Add service…' }])
               ]
-            : [{ key: 'actions', label: 'View ticket…' }],
+            : [
+                { key: 'actions', label: 'View ticket…' },
+                { key: 'services', label: 'Services…' }
+              ],
           onClick: ({ key }) => open(key, row)
         }}
       >
@@ -587,9 +653,10 @@ export default function PlanBoardTable({ toast, notify }) {
       <BoardBar
         filterCount={chips.length}
         chips={chips}
-        range={rangeLabel(day)}
+        day={day}
         live={live}
         onDay={(delta) => setDay((d) => d + delta)}
+        onDate={setDay}
         onFilters={() => setSettings('filters')}
         onSettings={() => setSettings('columns')}
         onClearChip={(key) => setCfg((c) => ({ ...c, filters: Object.fromEntries(Object.entries(c.filters).filter(([k]) => k !== key)) }))}
@@ -632,6 +699,7 @@ export default function PlanBoardTable({ toast, notify }) {
           rows={allRows}
           role={role}
           mods={loadMods()}
+          needMod={!!overlay.needMod}
           onPatch={(patch, msg) => patchRow(current.no, patch, msg)}
           onStatus={(patch, msg) => (patch ? patchRow(current.no, patch, msg) : message.warning(msg))}
           onAction={(key) => action(current, key === 'approve' ? 'approve-now' : key)}
@@ -645,10 +713,20 @@ export default function PlanBoardTable({ toast, notify }) {
           onClose={close}
         />
       )}
-      {current && overlay.type === 'fuel' && <FuelModal row={current} onSave={(patch, msg) => patchRow(current.no, patch, msg)} onClose={close} />}
+      {current && overlay.type === 'fuel' && <FuelModal row={current} info={vesselInfo(current, false)} onSave={(patch, msg) => patchRow(current.no, patch, msg)} onClose={close} />}
       {current && overlay.type === 'notes' && <NotesModal row={current} onSave={(patch, msg) => patchRow(current.no, patch, msg)} onClose={close} />}
+      {current && overlay.type === 'services' && (
+        <ServicesModal
+          row={current}
+          ro={!run || isTerminal(current.status)}
+          onEdit={(ji) => setTimeout(() => open('assign', current, { ji }), 0)}
+          onAdd={() => setTimeout(() => open('service', current), 0)}
+          onSave={(patch, msg) => patchRow(current.no, patch, msg)}
+          onClose={close}
+        />
+      )}
       {current && overlay.type === 'service' && (
-        <AddServiceModal row={current} preset={overlay.preset} onNext={(draft) => setTimeout(() => open('assign', current, { draft }), 0)} onClose={close} />
+        <AddServiceModal row={current} preset={overlay.preset} onNext={(draft) => setTimeout(() => nextAssign(current, draft), 0)} onClose={close} />
       )}
       {current && overlay.type === 'assign' && (
         <AssignModal
@@ -657,6 +735,7 @@ export default function PlanBoardTable({ toast, notify }) {
           rows={allRows}
           ji={overlay.ji}
           draft={overlay.draft}
+          escortOn={!!overlay.escortOn}
           onSave={(patch, msg) => patchRow(current.no, patch, msg)}
           onClose={close}
         />
@@ -696,29 +775,6 @@ function reasonCopy(mode, row) {
       {row.vessel} · {row.port} · No. {ticketId(row.no)}
     </b>
   );
-  if (mode === 'hold') {
-    return {
-      title: 'Hold ticket',
-      head,
-      text: 'The ticket keeps its status, paused. The client gets a push notification with the reason.',
-      label: 'Reason',
-      chips: D.holdReasons,
-      placeholder: 'e.g. Vessel delayed, ETA 14:00 tomorrow',
-      okText: 'Hold'
-    };
-  }
-  if (mode === 'invalid') {
-    return {
-      title: 'Mark as not valid',
-      head,
-      text: 'The ticket is closed. Only an admin can reopen a closed ticket.',
-      label: 'Reason',
-      placeholder: 'e.g. Duplicate of another ticket',
-      okText: 'Not valid',
-      danger: true,
-      optional: true
-    };
-  }
   if (mode === 'reject') {
     return {
       title: 'Reject cancellation',
@@ -730,14 +786,12 @@ function reasonCopy(mode, row) {
     };
   }
   return {
-    title: 'Admin override',
+    title: 'Cancel ticket',
     head,
-    text: `Current status: ${statusLabel(row.status)}. An override can move a ticket to any status, closed ones included. The reason is kept in the ticket's history.`,
-    options: STATUS_KEYS.filter((k) => k !== row.status).map((k) => ({ value: k, label: statusLabel(k) })),
-    optionLabel: 'New status',
+    text: `Current status: ${statusLabel(row.status)}. The ticket closes as CANCELLED and the client is notified with the reason. Only an admin can reopen a closed ticket.`,
     label: 'Reason',
-    placeholder: 'Why this status is being changed',
-    okText: 'Override',
+    placeholder: 'e.g. Vessel changed its schedule',
+    okText: 'Cancel ticket',
     danger: true
   };
 }

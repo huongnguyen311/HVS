@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Alert, Input, Modal, Typography } from 'antd';
 import D from '../data';
 import { fmtMin, pobMin, ticketId } from '../board/model.jsx';
-import { svc, svcKind } from '../board/timeline';
+import { KIND, svc, svcKind } from '../board/timeline';
 
 const { Text } = Typography;
 
@@ -44,12 +44,23 @@ export function serviceWindow(s, r) {
 // Timing label on each catalogue row, by where the service takes its window.
 const TIMING = { in: 'Starts at POB in', out: 'Starts at POB out', span: 'Spans POB in → POB out', after: 'Right after Mano (arrival)', pob: 'Starts at POB in, else POB out', end: 'No POB time, pinned to the row end' };
 
-// Add service…: pick a service from the admin catalogue; tugboats come next in the assign window.
+// Escort is not a catalogue service: it rides on the Mano block at POB in or POB out (escort boats, one cell
+// each, drawn before / after it). Picking it takes POB in (else POB out); the assign window then opens on that Mano block
+// (or a new one) with escort ticked.
+const ESCORT = 'escort';
+const escortAnchors = () => [...new Set(D.escortRules.map((x) => x.anchor))].filter((a) => D.services.some((x) => x.at === a && x.escort));
+const manoAt = (a) => D.services.find((x) => x.at === a && x.escort);
+
+// Add service…: pick a service from the admin catalogue (or Escort); tugboats come next in the assign window.
 export default function AddServiceModal({ row: r, preset, onNext, onClose }) {
   const [code, setCode] = useState(preset || null);
   const [win, setWin] = useState(() => (preset && svc(preset) ? serviceWindow(svc(preset), r) : null));
   const [note, setNote] = useState('');
-  const s = svc(code);
+  const anchors = escortAnchors();
+  // No choice to make: the escort goes with POB in when the ticket has that time, else with POB out.
+  const at = anchors.find((a) => pobMin(a === 'in' ? r.pobIn : r.pobOut) != null) || anchors[0];
+  const isEscort = code === ESCORT;
+  const s = isEscort ? manoAt(at) : svc(code);
   const block = s ? serviceBlock(s, r) : null;
   // The ticket's POB times, shown under the title when it has them.
   const pobs = [
@@ -69,11 +80,11 @@ export default function AddServiceModal({ row: r, preset, onNext, onClose }) {
       open
       title="Add service"
       className="pbm-sticky"
-      okText="Add service"
+      okText={isEscort ? 'Add escort' : 'Add service'}
       okButtonProps={{ disabled: !s || !!block }}
       onOk={() => {
         onClose();
-        onNext({ service: s.code, win, note: note.trim() });
+        onNext(isEscort ? { service: s.code, win: serviceWindow(s, r), note: note.trim(), escort: at } : { service: s.code, win, note: note.trim() });
       }}
       onCancel={onClose}
       width={620}
@@ -107,10 +118,24 @@ export default function AddServiceModal({ row: r, preset, onNext, onClose }) {
           // A blocked service still picks: the warning under the list says why.
           return btn;
         })}
+        {anchors.length > 0 && (
+          <button
+            type="button"
+            className={'pbm-svc' + (isEscort ? ' on' : '')}
+            style={isEscort ? { background: KIND.escort.bg, borderColor: KIND.escort.bd, color: KIND.escort.fg } : undefined}
+            onClick={() => setCode(ESCORT)}
+          >
+            <span>
+              <b>Escort</b>
+            </span>
+            <em>Escort boats with Mano at POB in / out</em>
+          </button>
+        )}
       </div>
+
       {s && (
         block ? (
-          <Alert className="pbm-alert" type="warning" showIcon message={`${s.name} cannot be added yet`} description={block} />
+          <Alert className="pbm-alert" type="warning" showIcon message={`${isEscort ? 'Escort' : s.name} cannot be added yet`} description={block} />
         ) : (
           <>
             <label className="pbm-label">Note (optional)</label>

@@ -129,7 +129,8 @@ const timeOf = (v) => (v.mode === 'time' ? pobMin(v.t) : null);
 
 // Assign tugboat: POB times, the window (services the MOD sets), the tugboats, and for POB services the
 // escort (rule + boats) or the shipping time.
-export default function AssignModal({ row: r, rows, ji, draft, onSave, onClose }) {
+// escortOn: opened from Add service › Escort, so escort starts ticked.
+export default function AssignModal({ row: r, rows, ji, draft, escortOn = false, onSave, onClose }) {
   const t = target(r, ji, draft);
   const s = t.s;
   const anchor = s && (s.at === 'in' || s.at === 'out') ? s.at : null;
@@ -148,7 +149,7 @@ export default function AssignModal({ row: r, rows, ji, draft, onSave, onClose }
     if ((r.ship || []).length) return r.ship[0].mins || r.ship[0].span * 30;
     return draft ? 30 : 0;
   });
-  const [escort, setEscort] = useState(escortJobs.length > 0);
+  const [escort, setEscort] = useState(escortJobs.length > 0 || escortOn);
   const [rule, setRule] = useState((t.job && t.job.escortRule) || (rules[0] || {}).key);
   const [escortTugs, setEscortTugs] = useState(escortJobs.map(([j]) => j.text));
 

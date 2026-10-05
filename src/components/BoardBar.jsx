@@ -1,20 +1,24 @@
-import { Popover } from 'antd';
+import dayjs from 'dayjs';
+import { useState } from 'react';
+import { DatePicker, Popover } from 'antd';
 import { CloseOutlined, FilterOutlined } from '@ant-design/icons';
 import D from '../data';
 import { Gear, PLeft, PRight } from '../board/icons';
-import { KIND, svcKind } from '../board/timeline';
+import { BOARD_DAY0, BOARD_TODAY, KIND, svcKind } from '../board/timeline';
 
 // Legend colours come from the service catalogue (Admin › Service Types, editable at runtime), plus escort segments.
 const legend = () => D.services.map((s) => ({ ...svcKind(s), label: s.name, short: s.short || s.name })).concat([KIND.escort]);
 const BAR_KEYS = 4; // service keys shown on the bar itself
-const MARKS = 7; // marks listed only in the popover (H7, = #, signed, hold, cancel?, #, blank)
+const MARKS = 6; // marks listed only in the popover (H7, = #, signed, hold, #, blank)
 
 // The board toolbar (.bbar): date window, filters, display settings, legend,
 // and one chip per active filter (✕ clears it) so a filtered board never looks like missing data.
 // live: the realtime connection (D1), a dot beside the dates (the toolbar has no room for a label at 390px):
 // green = live, red = offline. Losing / regaining it also toasts; on reconnect the board reloads (PlanBoardTable).
-export default function BoardBar({ filterCount, chips, range, live = true, onDay, onFilters, onSettings, onClearChip, onClearAll, onAI }) {
+export default function BoardBar({ filterCount, chips, day, live = true, onDay, onDate, onFilters, onSettings, onClearChip, onClearAll, onAI }) {
   const LEGEND = legend();
+  const [pickOpen, setPickOpen] = useState(false);
+  const pick = (d) => (onDate(d), setPickOpen(false));
   return (
     <div className="bbar">
       <div className="bbar-row">
@@ -22,7 +26,26 @@ export default function BoardBar({ filterCount, chips, range, live = true, onDay
           <button type="button" onClick={() => onDay(-1)} aria-label="Previous day">
             <PLeft />
           </button>
-          <span>{range}</span>
+          {/* The date picker: the first day of the 2-day window (default today); the field reads 02/10 – 03/10. */}
+          <DatePicker
+            className="bdate-pick"
+            variant="borderless"
+            allowClear={false}
+            inputReadOnly
+            open={pickOpen}
+            onOpenChange={setPickOpen}
+            suffixIcon={null}
+            value={dayjs(BOARD_DAY0).add(day, 'day')}
+            format={(d) => d.format('DD/MM') + ' – ' + d.add(1, 'day').format('DD/MM')}
+            showToday={false}
+            renderExtraFooter={() => (
+              <button type="button" className="bdate-today" onClick={() => pick(dayjs(BOARD_TODAY).diff(dayjs(BOARD_DAY0), 'day'))}>
+                Today
+              </button>
+            )}
+            onChange={(d) => d && pick(d.startOf('day').diff(dayjs(BOARD_DAY0), 'day'))}
+            aria-label="Board date"
+          />
           <button type="button" onClick={() => onDay(1)} aria-label="Next day">
             <PRight />
           </button>
@@ -64,7 +87,10 @@ export default function BoardBar({ filterCount, chips, range, live = true, onDay
       {/* One-line legend: colour swatches with short names; ⓘ opens the full key. */}
       <Popover
         trigger="click"
-        placement="bottomRight"
+        // Desktop: the card opens from the legend line's left end, right under it (not off at the window's
+        // right edge, over POB / NOTE). Phone: full width under the legend (CSS .blegend-pop).
+        placement={document.body.classList.contains('desk') ? 'bottomLeft' : 'bottomRight'}
+        align={document.body.classList.contains('desk') ? { offset: [12, 6] } : undefined}
         title="Legend"
         overlayClassName="blegend-pop"
         content={
@@ -84,14 +110,12 @@ export default function BoardBar({ filterCount, chips, range, live = true, onDay
                 <u>H7</u>
               </span>
               <span>Tugboat double-booked</span>
-              <span className="pb-twin-tag">= #1564</span>
+              <span className="pb-twin-tag">= 1564</span>
               <span>Duplicate of that ticket</span>
               <span className="lg signed">0900 ✓</span>
               <span>POB signed by pilot</span>
-              <b>⏸</b>
-              <span>On hold</span>
-              <b>cancel?</b>
-              <span>Client asked to cancel</span>
+              <b>Cancel requested</b>
+              <span>The client asked to cancel</span>
               <b>#</b>
               <span>POB will not happen</span>
               <b>blank</b>
@@ -117,7 +141,7 @@ export default function BoardBar({ filterCount, chips, range, live = true, onDay
             Double-booked
           </span>
           <span className="bsw bsw-x">
-            <span className="pb-twin-tag">= #</span>
+            <span className="pb-twin-tag">=</span>
             Dupe
           </span>
           <span className="bsw bsw-x">
@@ -125,12 +149,8 @@ export default function BoardBar({ filterCount, chips, range, live = true, onDay
             Signed
           </span>
           <span className="bsw bsw-x">
-            <b>⏸</b>
-            On hold
-          </span>
-          <span className="bsw bsw-x">
-            <b>cancel?</b>
-            Cancel req.
+            <b>Cancel req.</b>
+            Client cancel
           </span>
           <span className="bsw bsw-x">
             <b>#</b>

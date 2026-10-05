@@ -163,7 +163,6 @@
     formTab: 'towage',
     showAllContacts: false,
     exportCols: D.exportColumns.slice(),
-    holds: store('holds', {}),
     // Client cancellation requests on the ticket list: { 't:<id>': { reason, by, at } }.
     cancelReqs: store('cancelReqs', {}),
     ticketServices: store('ticketServices', {})
@@ -230,7 +229,7 @@
   // The header names the screen; the ticket list and ticket form keep the module name "Order & Update".
   var TITLES = {
     board: 'Plan Board', history: 'History', profile: 'Profile', notifications: 'Notifications', admin: 'Administration',
-    ledger: 'Ledger', 'ledger/ai': 'AI Proposals', 'ledger/export': 'Export Ledger', 'ledger/files': 'Ledger Files',
+    ledger: 'Ledger', 'ledger/ai': 'AI Suggestions', 'ledger/export': 'Export Ledger', 'ledger/files': 'Ledger Files',
     'admin/fx-rates': 'Currencies & Rates'
   };
 
@@ -656,9 +655,9 @@
     return state.tickets.filter(function (t) { return norm(t.by) === me; });
   }
 
-  function cancelPill(t) {
-    return state.cancelReqs['t:' + t.id] ? '<span class="hold-pill cancel-pill">' + emoji('✋') + 'Cancel requested</span>' : '';
-  }
+  // While its client asks to cancel, a ticket shows "Cancel requested" in place of its status (one pill, amber).
+  var CANCEL_REQ = 'Cancel requested';
+  function held(t) { return !!state.cancelReqs['t:' + t.id]; }
 
   // The ticket list's Filters sheet (state.tf). Text filters match without accents; date = the created day.
   function sheetPasses(t) {
@@ -675,17 +674,16 @@
   function tfCount() { return Object.keys(state.tf).filter(function (k) { return state.tf[k]; }).length; }
 
   views.tickets = function () {
-    var filters = ['All', 'On hold', 'Pending', 'Confirmed', 'New Update', 'Done', 'Not Valid', 'Cancelled'];
+    var filters = ['All', CANCEL_REQ, 'Pending', 'Confirmed', 'New Update', 'Done', 'Not Valid', 'Cancelled'];
     var mine = myTickets();
     var list = mine.filter(function (t) {
       if (!sheetPasses(t)) return false;
-      if (state.ticketFilter === 'On hold') return !!state.holds['t:' + t.id];
+      if (state.ticketFilter === CANCEL_REQ) return held(t);
       return state.ticketFilter === 'All' || t.status === state.ticketFilter;
     });
     if (desk()) {
-      var held = function (t) { return !!state.holds['t:' + t.id]; };
       var count = function (f) {
-        return mine.filter(function (t) { return f === 'On hold' ? held(t) : f === 'All' || t.status === f; }).length;
+        return mine.filter(function (t) { return f === CANCEL_REQ ? held(t) : f === 'All' || t.status === f; }).length;
       };
       return header({ logo: true }) + '<div class="page dt-page">' + dataTable({
         source: state.tickets,
@@ -701,10 +699,9 @@
         }).join('') + '</div>',
         cols: [
           { key: 'id', label: 'Ticket', sort: 'number', cell: function (t) {
-            return '<b>#' + esc(t.id) + '</b>' + (t.files ? '<span class="dt-files" title="' + t.files + ' file' + (t.files > 1 ? 's' : '') + ' attached">📎' + t.files + '</span>' : '') +
-              (held(t) ? '<span class="hold-pill">' + emoji('⏸') + 'On hold</span>' : '') + cancelPill(t);
+            return '<b>#' + esc(t.id) + '</b>' + (t.files ? '<span class="dt-files" title="' + t.files + ' file' + (t.files > 1 ? 's' : '') + ' attached">📎' + t.files + '</span>' : '');
           } },
-          { key: 'status', label: 'Status', sort: 'text', cell: function (t) { return pill(t.status, D.statusColors[t.status] || '#6c757d'); } },
+          { key: 'status', label: 'Status', sort: 'text', cell: function (t) { return held(t) ? pill(CANCEL_REQ, '#f59e0b') : pill(t.status, D.statusColors[t.status] || '#6c757d'); } },
           { key: 'vessel', label: 'Vessel', sort: 'text', cls: 'clip', cell: function (t) { return '<b title="' + esc(t.vessel) + '">' + esc(t.vessel) + '</b>'; } },
           { key: 'port', label: 'Port', sort: 'text', cls: 'clip', cell: function (t) { return '<span title="' + esc(t.port) + '">' + esc(t.port) + '</span>'; } },
           { key: 'berth', label: 'ET Berth / Unberth', sort: 'datetime', cell: function (t) {
@@ -713,7 +710,7 @@
           { key: 'created', label: 'Created', sort: 'datetime' },
           // No Assignee: STAFF is gone in Phase 4, nobody is assigned to a ticket.
           { key: 'by', label: 'By', sort: 'text' },
-          { key: 'note', label: 'Note', cls: 'clip note', cell: function (t) { return t.note ? '<span title="' + esc(t.note) + '">' + esc(t.note) + '</span>' : dash(''); } }
+          { key: 'note', label: 'Note', cls: 'note', cell: function (t) { return t.note ? '<span title="' + esc(t.note) + '">' + esc(t.note) + '</span>' : dash(''); } }
         ]
       }) + '</div>';
     }
@@ -743,8 +740,8 @@
     if (t.files) meta += '<div class="gap">' + emoji('📎') + t.files + ' file' + (t.files > 1 ? 's' : '') + ' attached</div>';
     return '<div class="card ticket" data-go="tickets/' + t.id + '">' +
       '<div class="ticket-top"><span class="ticket-no">#' + t.id + '</span>' +
-      '<span class="ticket-tags">' + (state.holds['t:' + t.id] ? '<span class="hold-pill">' + emoji('⏸') + 'On hold</span>' : '') + cancelPill(t) +
-      '<span class="tag" style="background:' + (D.statusColors[t.status] || '#6c757d') + '">' + esc(t.status) + '</span></span></div>' +
+      '<span class="ticket-tags">' + (held(t) ? '<span class="tag" style="background:#f59e0b">' + CANCEL_REQ + '</span>' :
+      '<span class="tag" style="background:' + (D.statusColors[t.status] || '#6c757d') + '">' + esc(t.status) + '</span>') + '</span></div>' +
       '<div class="ticket-meta">' + meta + '</div>' +
       (t.note ? '<div class="ticket-note">' + esc(t.note) + '</div>' : '') + '</div>';
   }
@@ -769,8 +766,8 @@
     // DONE / NOT_VALID / CANCELLED are locked for everyone; only an admin override on the plan board reopens one.
     var closed = /^(Done|Not Valid|Cancelled)$/.test(t.status || '');
     return '<form class="box" data-form="ticket"' + (closed ? ' data-locked' : '') + '>' +
-      (editing ? '<div class="box-title">' + (closed ? 'Ticket #' + t.id : 'Editing Ticket #' + t.id) + holdButton(t) + cancelButton(t) + '</div>' + holdBanner('t:' + t.id) + cancelBanner(t) : '') +
-      (closed ? '<div class="hold-banner lock-banner">' + emoji('🔒') + '<div><b>' + esc(t.status) + ' · read only</b><span>Closed tickets are locked. Only an admin can reopen one, from the plan board, with a reason.</span></div></div>' : '') +
+      (editing ? '<div class="box-title">' + (closed ? 'Ticket #' + t.id : 'Editing Ticket #' + t.id) + cancelButton(t) + '</div>' + cancelBanner(t) : '') +
+      (closed ? '<div class="hold-banner lock-banner">' + emoji('🔒') + '<div><b>' + esc(t.status) + ' · read only</b><span>Closed tickets are locked. Only an admin can reopen one, from the plan board.</span></div></div>' : '') +
       '<div class="fld" style="padding-top:15px;padding-bottom:11px">' +
       '<div class="fld-row first"><span class="fld-label">1. Vessel<span class="req">*</span>:</span>' +
       '<input class="fld-input" name="vessel" value="' + esc(t.vessel || '') + '" placeholder="........................" /></div>' +
@@ -799,11 +796,6 @@
       '</form>';
   }
 
-  // A hold is a flag beside the status (TICKET_HOLD.md): only live tickets take one, set by mod/admin.
-  function canHold(t) {
-    return /^(Pending|Confirmed|New Update)$/.test(t.status) && /ADMIN|MOD/.test(user.role || 'ADMIN');
-  }
-
   // A client never cancels directly: they ask, and the MOD / admin approves or rejects (D5).
   function cancelButton(t) {
     if (user.role !== 'CLIENT' || !/^(Pending|Confirmed|New Update)$/.test(t.status) || state.cancelReqs['t:' + t.id]) return '';
@@ -818,7 +810,7 @@
     var canDecide = user.role === 'ADMIN' || (user.role === 'MOD' && byMod);
     var decide = canDecide ? '<div class="cancel-acts"><button type="button" class="pill-btn primary" data-action="cancel-approve" data-arg="' + esc(t.id) + '">Approve</button>' +
       '<button type="button" class="pill-btn outline dark" data-action="cancel-reject" data-arg="' + esc(t.id) + '">Reject…</button></div>' : '';
-    return '<div class="hold-banner cancel-banner">' + emoji('✋') + '<div><b>Cancellation requested · waiting for ' + (byMod ? 'the MOD' : 'an admin') + '</b><span>Reason: ' + esc(c.reason) + ' · ' + esc(heldFor(c.at).replace('held', 'sent')) + ' ago</span>' + decide + '</div></div>';
+    return '<div class="hold-banner cancel-banner">' + emoji('✋') + '<div><b>Client asked to cancel · waiting for ' + (byMod ? 'the MOD' : 'an admin') + '</b><span>Reason: ' + esc(c.reason) + ' · ' + esc(heldFor(c.at).replace('held', 'sent')) + ' ago</span>' + decide + '</div></div>';
   }
 
   // P1: a client account linked to a customer gets its customer and default agent filled in on a new ticket.
@@ -851,19 +843,6 @@
 
   function ticketById(id) {
     return state.tickets.filter(function (x) { return x.id === id; })[0];
-  }
-
-  function holdButton(t) {
-    if (!canHold(t)) return '';
-    var held = !!state.holds['t:' + t.id];
-    return '<button type="button" class="hold-link" data-action="' + (held ? 'release-hold' : 'hold-ticket') + '" data-hold-key="t:' + t.id +
-      '" data-hold-label="' + esc(t.vessel) + '">' + (held ? 'Release hold' : 'Hold') + '</button>';
-  }
-
-  function holdBanner(key) {
-    var h = state.holds[key];
-    if (!h) return '';
-    return '<div class="hold-banner">' + emoji('⏸') + '<div><b>On hold · ' + esc(h.reason) + '</b><span>Set by ' + esc(h.by) + ' · ' + esc(heldFor(h.at)) + '</span></div></div>';
   }
 
   function heldFor(at) {
@@ -1399,7 +1378,15 @@
       .filter(function (it) { return allowed(it[2]); });
   }
 
+  // A role without the Admin Panel still gets the admin tables its routes allow (accountants: customers, agents,
+  // tax codes, prices, rates, discounts, split rules), listed in the menu by permission: [emoji, label, route].
+  function tableItems() {
+    if (allowed('admin')) return [];
+    return D.admin.filter(function (a) { return /^admin\//.test(a.route) && allowed(a.route); }).map(function (a) { return [a.icon, a.title, a.route]; });
+  }
+
   function navOn(route, it) {
+    if (it[2] === 'admin/currencies' && route === 'admin/fx-rates') return true;
     return route === it[2] || (it[2] === 'tickets' && /^tickets/.test(route)) || (it[2] === 'admin' && /^admin/.test(route)) ||
       (it[2] === 'ledger' && /^ledger/.test(route));
   }
@@ -1408,6 +1395,7 @@
 
   function deskSide() {
     var route = currentRoute();
+    var tables = tableItems();
     var admin = /^admin/.test(route) ? D.adminGroups.map(function (g) {
       var rows = D.admin.filter(function (a) { return a.group === g.key && allowed(a.route); });
       if (!rows.length) return '';
@@ -1422,7 +1410,9 @@
         var on = navOn(route, it);
         return '<a class="dk-item' + (on ? ' on' : '') + '" data-go="' + it[2] + '">' + emoji(it[0]) + '<span>' + it[1] + '</span></a>' +
           (it[2] === 'admin' && admin ? '<div class="dk-subs">' + admin + '</div>' : '');
-      }).join('') + '</nav>' +
+      }).join('') + (tables.length ? '<div class="dk-subs dk-tables"><div class="dk-sub-h' + (tables.some(function (it) { return navOn(route, it); }) ? ' on' : '') + '">Ledger tables</div>' + tables.map(function (it) {
+        return '<a class="dk-sub' + (navOn(route, it) ? ' on' : '') + '" data-go="' + esc(it[2]) + '">' + esc(it[1]) + '</a>';
+      }).join('') + '</div>' : '') + '</nav>' +
       '<div class="dk-foot">' +
       '<div class="dk-user"><div class="avatar">' + esc(initials(user.name)) + '</div>' +
       '<div class="dk-user-id"><b>' + esc(user.name) + '</b><small>' + esc(user.email) + '</small>' +
@@ -1462,7 +1452,9 @@
       items.map(function (it) {
         var on = route === it[2] || (it[2] === 'tickets' && /^tickets/.test(route)) || (it[2] === 'admin' && /^admin/.test(route));
         return '<div class="drawer-item' + (on ? ' on' : '') + '" data-go="' + it[2] + '">' + emoji(it[0]) + it[1] + '</div>';
-      }).join('') + '<div class="drawer-sep"></div>' +
+      }).join('') + (tableItems().length ? '<div class="drawer-sep"></div><div class="drawer-h">Ledger tables</div>' + tableItems().map(function (it) {
+        return '<div class="drawer-item' + (navOn(route, it) ? ' on' : '') + '" data-go="' + it[2] + '">' + emoji(it[0]) + it[1] + '</div>';
+      }).join('') : '') + '<div class="drawer-sep"></div>' +
       '<div class="drawer-item" data-action="switch-role">' + emoji('🔁') + 'Switch role (demo)</div>' +
       '<div class="drawer-foot"><div class="drawer-item" data-action="logout">' + emoji('🚪') + 'Logout</div></div></aside>', 'drawer', '#7a7a7a');
   }
@@ -1928,8 +1920,7 @@
         if (user.role !== 'ADMIN' && at.status !== 'Pending') { toast('Only an admin can cancel a ' + at.status + ' ticket'); break; }
         at.status = 'Cancelled';
         delete state.cancelReqs['t:' + at.id];
-        delete state.holds['t:' + at.id];
-        save('tickets', state.tickets); save('cancelReqs', state.cancelReqs); save('holds', state.holds);
+        save('tickets', state.tickets); save('cancelReqs', state.cancelReqs);
         notify('✅', 'Cancellation approved ' + at.vessel, ['Ticket #' + at.id + ' is now cancelled', 'Client notified by push'], OPS.concat('CLIENT'), 'by:' + at.by);
         render();
         toast('Cancellation approved · client notified');
@@ -2090,7 +2081,7 @@
     if (edited) {
       t = edited;
       Object.keys(fields).forEach(function (k) { t[k] = fields[k]; });
-      // A client changing a Confirmed order sends it back for re-confirmation (on hold or not).
+      // A client changing a Confirmed order sends it back to be confirmed again.
       if (user.role === 'CLIENT' && t.status === 'Confirmed') { t.status = 'New Update'; msg = 'Order updated · status New Update'; }
       else msg = 'Order updated';
       notify('✏️', 'Order updated ' + t.vessel, lines.concat('Ticket #' + t.id), null, 'by:' + t.by);
@@ -2212,17 +2203,14 @@
   (window.HVS_EXT || []).forEach(function (ext) { ext(api); });
 
   // ---------- tap tips ----------
-  // A phone has no hover, so details kept in a tooltip (title) are also given as data-tip: tapping the element
-  // shows the text in a bubble under it; tapping anywhere else (or scrolling) closes it.
+  // Details kept in a tooltip are given as data-tip. Desktop (body.desk): the bubble shows under the element on
+  // hover. Phone (no hover): tapping the element shows it; tapping anywhere else (or scrolling) closes it.
   function closeTip() {
     var old = document.querySelector('.tap-tip');
     if (old) old.remove();
     return old;
   }
-  document.addEventListener('click', function (e) {
-    var el = e.target.closest('[data-tip]');
-    var old = closeTip();
-    if (!el || (old && old.owner === el)) return;
+  function showTip(el) {
     var tip = document.createElement('div');
     tip.className = 'tap-tip';
     tip.setAttribute('role', 'tooltip');
@@ -2234,6 +2222,21 @@
     tip.style.left = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 8)) + 'px';
     var below = r.bottom + 6;
     tip.style.top = (below + tip.offsetHeight > window.innerHeight - 8 ? r.top - tip.offsetHeight - 6 : below) + 'px';
+  }
+  var onDesk = function () { return document.body.classList.contains('desk'); };
+  document.addEventListener('click', function (e) {
+    if (onDesk()) return;
+    var el = e.target.closest('[data-tip]');
+    var old = closeTip();
+    if (el && !(old && old.owner === el)) showTip(el);
+  });
+  document.addEventListener('mouseover', function (e) {
+    if (!onDesk()) return;
+    var el = e.target.closest('[data-tip]');
+    var old = document.querySelector('.tap-tip');
+    if (old && old.owner === el) return;
+    closeTip();
+    if (el) showTip(el);
   });
   window.addEventListener('scroll', closeTip, true);
 
