@@ -1187,3 +1187,371 @@ body.desk .dk-tables {
   background: #f5f3ff;
   color: #6d28d9;
 }
+
+/* ---------- tidy edit dialog (editDialog cls 'ed-tidy'): fixed head and buttons, fields scroll between ---------- */
+
+.dialog.ed-dialog.ed-tidy {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  max-height: calc(var(--app-h) - 48px);
+  overflow: hidden;
+}
+
+.ed-tidy .ed-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 12px 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.ed-tidy .ed-head h3 {
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.ed-x {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: #6b7280;
+}
+
+.ed-x svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ed-x:active {
+  background: #f3f4f6;
+}
+
+.ed-tidy .ed-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 16px 16px;
+}
+
+.ed-tidy .actions {
+  flex: none;
+  margin: 0;
+  padding: 12px 16px 16px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.ed-tidy .actions .pill-btn {
+  flex: 1 1 0;
+}
+
+.ed-tidy .field-label {
+  margin: 10px 0 4px;
+  font-size: 13px;
+  color: #374151;
+}
+
+/* Section heads: small caps line with a hint on the right. */
+.ed-sec {
+  flex: 1 1 100%;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed #e5e7eb;
+}
+
+.ed-sec:first-child {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 0;
+}
+
+.ed-sec b {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--blue);
+}
+
+.ed-sec small {
+  font-size: 11.5px;
+  color: #9ca3af;
+}
+
+/* A pick field: looks like an input, opens the list sheet. */
+.ed-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: auto !important;
+  min-height: 40px;
+  padding: 6px 10px 6px 12px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ed-pick span {
+  flex: 1;
+  min-width: 0;
+}
+
+.ed-pick b,
+.ed-pick small {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ed-pick b {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.ed-pick small {
+  font-size: 11.5px;
+  line-height: 15px;
+  color: #6b7280;
+}
+
+.ed-pick i {
+  flex: none;
+  display: flex;
+  color: #9ca3af;
+}
+
+/* A label-left row (vessel size ranges): label, min – max, aligned across rows. */
+.ed-f.ed-inline {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.ed-f.ed-inline .field-label {
+  margin: 0;
+  font-weight: 600;
+}
+
+.ed-inline .ed-range {
+  gap: 8px;
+}
+
+.ed-inline .ed-range .text-input {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.ed-inline .ed-range span {
+  width: 8px;
+  text-align: center;
+  color: #9ca3af;
+}
+
+/* Price + currency on one row: the amount takes the room, the currency a fixed slot. */
+.ed-f.ed-grow {
+  flex: 1 1 0;
+}
+
+.ed-f.ed-cur {
+  flex: 0 0 96px;
+}
+
+.ed-tidy .ed-hint {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.ed-tidy .ed-msg {
+  margin-top: 14px;
+}
+
+/* ---------- in-frame select / date popups (app.js fxOpen, phone only) ---------- */
+/* The same card as the app's dialogs (.dialog), in a layer above them so the dialog underneath stays open. */
+
+.fx-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+}
+
+.fx-layer .mask {
+  z-index: 0;
+}
+
+.dialog.fx-sheet {
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(var(--app-h) - 48px);
+  padding: 0;
+  overflow: hidden;
+}
+
+.fx-sheet .ed-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 12px 10px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.fx-sheet .ed-head h3 {
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.fx-sheet .pk-search {
+  flex: none;
+  margin: 10px 12px 2px;
+}
+
+.fx-sheet .pk-list {
+  margin: 0;
+  padding: 4px 8px 10px;
+  max-height: calc(var(--app-h) * 0.6);
+}
+
+.fx-sheet .pk-item {
+  padding: 10px 8px;
+  border-radius: 8px;
+  border-bottom: 0;
+}
+
+.fx-sheet .pk-item + .pk-item {
+  box-shadow: 0 -1px 0 #f3f4f6;
+}
+
+.fx-sheet .pk-item.on,
+.fx-sheet .pk-item.on + .pk-item {
+  box-shadow: none;
+}
+
+.fx-sheet .pk-item.on b {
+  color: var(--blue);
+}
+
+.fx-sheet .pk-item:disabled {
+  opacity: 0.4;
+}
+
+.fx-cal-body {
+  padding: 8px 12px 0;
+}
+
+.fx-sheet .actions {
+  flex: none;
+  margin: 0;
+  padding: 12px 16px 16px;
+}
+
+.fx-sheet .cal-time {
+  margin: 10px 16px 0;
+}
+
+/* Calendar */
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.cal-nav b {
+  font-size: 15px;
+}
+
+.cal-nav button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: #374151;
+}
+
+.cal-nav button:active {
+  background: #f3f4f6;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  row-gap: 2px;
+  text-align: center;
+}
+
+.cal-wd {
+  padding: 6px 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #9ca3af;
+}
+
+.cal-day {
+  justify-self: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 14.5px;
+  color: var(--text);
+}
+
+.cal-day.today {
+  color: var(--blue);
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px var(--blue);
+}
+
+.cal-day.on {
+  background: var(--blue);
+  color: #fff;
+  font-weight: 700;
+}
+
+.cal-day:disabled {
+  color: #d1d5db;
+}
+
+.cal-time {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+  font-size: 14px;
+}
+
+.cal-time span {
+  flex: 1;
+  font-weight: 600;
+}
+
+.cal-time .text-input {
+  width: 52px;
+  height: 40px;
+  padding: 0;
+  text-align: center;
+  font-size: 16px;
+}
+
+.cal-time small {
+  font-size: 11.5px;
+  color: #9ca3af;
+}

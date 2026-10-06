@@ -85,6 +85,8 @@
   // Where tapping a notification goes: its ticket ("Ticket #id", or the vessel in the title), else the
   // plan board for a board ticket ('agency:' owner) when this role may open it.
   function notifTarget(n) {
+    var ext = api.notifTarget && api.notifTarget(n);
+    if (ext) return ext;
     var text = (n.lines || []).join(' ');
     var m = text.match(/Ticket #(\w+)/);
     var tk = m ? ticketById(m[1]) : myTickets().filter(function (x) { return x.vessel && n.title.indexOf(x.vessel) >= 0; })[0];
@@ -228,7 +230,7 @@
 
   // The header names the screen; the ticket list and ticket form keep the module name "Order & Update".
   var TITLES = {
-    board: 'Plan Board', history: 'History', profile: 'Profile', notifications: 'Notifications', admin: 'Administration',
+    board: 'Plan Board', 'buoy-board': 'Buoy Board', history: 'History', profile: 'Profile', notifications: 'Notifications', admin: 'Administration',
     ledger: 'Ledger', 'ledger/ai': 'AI Suggestions', 'ledger/export': 'Export Ledger', 'ledger/files': 'Ledger Files',
     'admin/fx-rates': 'Currencies & Rates'
   };
@@ -362,7 +364,7 @@
 
   /*
    * The edit dialog of the management and pricing screens (A1: edits happen in a modal).
-   *   fields  [{ name, label, type, options, req, hint, placeholder, half }]
+   *   fields  [{ name, label, type, options, req, hint, placeholder, half, cls }]
    *           type: text · number · textarea · date · select · checkbox · color · range (name+'Min' / name+'Max')
    *                 one / multi (an inline list with search, options [{ value, label, sub, title }]) · html (static)
    *   onSave(values, force) -> nothing (saved) · { error } (stays open) · { warn } (asks to save anyway, then force = true)
@@ -376,7 +378,17 @@
       var hint = f.hint ? '<p class="ed-hint">' + esc(f.hint) + '</p>' : '';
       var ph = ' placeholder="' + esc(f.placeholder || '') + '"';
       var body;
-      if (f.type === 'html') return '<div class="ed-f' + (f.half ? ' half' : '') + '">' + (f.label ? lab : '') + f.html + '</div>';
+      var fc = 'ed-f' + (f.half ? ' half' : '') + (f.cls ? ' ' + f.cls : '');
+      if (f.type === 'html') return '<div class="' + fc + '">' + (f.label ? lab : '') + f.html + '</div>';
+      if (f.type === 'section') return '<div class="ed-sec"><b>' + esc(f.label) + '</b>' + (f.hint ? '<small>' + esc(f.hint) + '</small>' : '') + '</div>';
+      if (f.type === 'pick') {
+        // One value from a long list with sub-lines: a compact field that opens a sheet (the inline list takes half a phone screen).
+        var pv = String(val(f.name));
+        var po = f.options.filter(function (x) { return String(x.value) === pv; })[0] || f.options[0] || { label: '' };
+        body = '<input type="hidden" name="' + f.name + '" value="' + esc(pv) + '" /><button type="button" class="text-input ed-pick" data-ed-pick="' + f.name + '">' +
+          '<span>' + pickLine(po) + '</span><i>' + I.pRight + '</i></button>';
+        return '<div class="' + fc + '">' + lab + body + hint + '</div>';
+      }
       if (f.type === 'textarea') body = '<textarea class="text-area" name="' + f.name + '"' + ph + '>' + esc(val(f.name)) + '</textarea>';
       else if (f.type === 'select') {
         body = '<select class="text-input" name="' + f.name + '">' + f.options.map(function (x) {
@@ -384,24 +396,31 @@
         }).join('') + '</select>';
       } else if (f.type === 'checkbox') {
         return '<label class="check ed-check"><input type="checkbox" name="' + f.name + '"' + (v[f.name] ? ' checked' : '') + ' />' + esc(f.label) + '</label>' + hint;
+      } else if (f.type === 'date' || f.type === 'datetime') {
+        // Native pickers; values are yyyy-mm-dd / yyyy-mm-ddTHH:MM.
+        body = '<input class="text-input" type="' + (f.type === 'date' ? 'date' : 'datetime-local') + '" name="' + f.name + '" value="' + esc(val(f.name)) + '"' + (f.req ? ' required' : '') + ' />';
       } else if (f.type === 'color') body = '<input class="ed-color" type="color" name="' + f.name + '" value="' + esc(val(f.name) || '#ffffff') + '" />';
       else if (f.type === 'range') {
         body = '<div class="ed-range"><input class="text-input" name="' + f.name + 'Min" inputmode="decimal" placeholder="min (any)" value="' + esc(val(f.name + 'Min')) + '" />' +
-          '<span>≤ ' + esc(f.unit || '') + ' ≤</span><input class="text-input" name="' + f.name + 'Max" inputmode="decimal" placeholder="max (any)" value="' + esc(val(f.name + 'Max')) + '" /></div>';
+          '<span>' + esc(f.sep || '≤ ' + (f.unit || '') + ' ≤') + '</span><input class="text-input" name="' + f.name + 'Max" inputmode="decimal" placeholder="max (any)" value="' + esc(val(f.name + 'Max')) + '" /></div>';
       } else if (f.type === 'one' || f.type === 'multi') {
         var cur = f.type === 'multi' ? (v[f.name] || []) : [val(f.name)];
-        body = '<div class="ed-list"><input class="ed-q" type="search" placeholder="Search" />' + '<div class="ed-opts">' + f.options.map(function (x) {
+        // f.search false: a short list, no search box. x.html: the option's own markup (already escaped) in place of label / sub / note.
+        body = '<div class="ed-list">' + (f.search === false ? '' : '<input class="ed-q" type="search" placeholder="Search" />') + '<div class="ed-opts">' + f.options.map(function (x) {
           return '<label class="ed-opt" title="' + esc(x.title || '') + '"><input type="' + (f.type === 'multi' ? 'checkbox' : 'radio') + '" name="' + f.name + '" value="' + esc(x.value) + '"' +
-            (cur.indexOf(x.value) >= 0 ? ' checked' : '') + ' /><span><b>' + esc(x.label) + '</b>' + (x.sub ? '<small>' + esc(x.sub) + '</small>' : '') + (x.note ? '<em>' + esc(x.note) + '</em>' : '') + '</span></label>';
+            (cur.indexOf(x.value) >= 0 ? ' checked' : '') + ' /><span>' + (x.html || '<b>' + esc(x.label) + '</b>' + (x.sub ? '<small>' + esc(x.sub) + '</small>' : '') + (x.note ? '<em>' + esc(x.note) + '</em>' : '')) + '</span></label>';
         }).join('') + '</div></div>';
       } else {
         body = '<input class="text-input" name="' + f.name + '"' + (f.type === 'number' ? ' inputmode="decimal"' : '') + ph + ' value="' + esc(val(f.name)) + '" />';
       }
-      return '<div class="ed-f' + (f.half ? ' half' : '') + '">' + lab + body + hint + '</div>';
+      return '<div class="' + fc + '">' + lab + body + hint + '</div>';
     };
-    var html = '<div class="mask light" data-action="close"></div><form class="dialog ed-dialog" data-dialog novalidate><h3>' + esc(o.title) + '</h3>' +
-      (o.text ? '<p class="dlg-text">' + esc(o.text) + '</p>' : '') + '<div class="ed-grid">' + o.fields.map(field).join('') + '</div>' +
-      '<div class="ed-msg" hidden></div>' +
+    // o.cls 'ed-tidy': a fixed head (title + ×) and button row, with only the fields scrolling between them.
+    var tidy = / ?ed-tidy\b/.test(o.cls || '');
+    var html = '<div class="mask light" data-action="close"></div><form class="dialog ed-dialog' + (o.cls ? ' ' + o.cls : '') + '" data-dialog novalidate>' +
+      '<div class="ed-head"><h3>' + esc(o.title) + '</h3>' + (tidy ? '<button type="button" class="ed-x" data-action="close" aria-label="Close">' + I.close + '</button>' : '') + '</div>' +
+      '<div class="ed-body">' + (o.text ? '<p class="dlg-text">' + esc(o.text) + '</p>' : '') + '<div class="ed-grid">' + o.fields.map(field).join('') + '</div>' +
+      '<div class="ed-msg" hidden></div></div>' +
       '<div class="actions">' + (o.reset ? '<button type="button" class="ed-reset" data-ed-reset>' + esc(o.reset.label || 'Reset') + '</button>' : '') +
       '<button type="button" class="pill-btn outline dark" data-action="close">Cancel</button><button type="submit" class="pill-btn primary">' + esc(o.okLabel || 'Save') + '</button></div></form>';
     var wrap = openOverlay(html, 'dialog', '#a8a8a8');
@@ -409,6 +428,17 @@
     form.style.top = Math.max(24, (window.innerHeight - form.offsetHeight) / 2) + 'px';
     if (o.reset) form.querySelector('[data-ed-reset]').addEventListener('click', function () { closeOverlay(); o.reset.run(); render(); });
     var force = false;
+    form.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-ed-pick]');
+      if (!b) return;
+      var f = o.fields.filter(function (x) { return x.name === b.dataset.edPick; })[0];
+      var input = form.elements[f.name];
+      pickSheet(f.label, f.options, input.value, function (x) {
+        input.value = x.value;
+        b.querySelector('span').innerHTML = pickLine(x);
+        fxFire(input);
+      });
+    });
     form.addEventListener('input', function (e) {
       if (e.target.classList.contains('ed-q')) {
         var q = norm(e.target.value.trim());
@@ -422,7 +452,7 @@
       e.preventDefault();
       var out = {};
       o.fields.forEach(function (f) {
-        if (f.type === 'html') return;
+        if (f.type === 'html' || f.type === 'section') return;
         if (f.type === 'checkbox') out[f.name] = form.elements[f.name].checked;
         else if (f.type === 'range') { out[f.name + 'Min'] = form.elements[f.name + 'Min'].value.trim(); out[f.name + 'Max'] = form.elements[f.name + 'Max'].value.trim(); }
         else if (f.type === 'multi') out[f.name] = Array.prototype.map.call(form.querySelectorAll('[name="' + f.name + '"]:checked'), function (x) { return x.value; });
@@ -451,6 +481,177 @@
     return wrap;
   }
 
+  // ---------- in-frame select / date sheets (phone) ----------
+
+  /*
+   * Native <select> lists and date calendars are drawn by the browser outside the page, so in the 390px device
+   * frame they spill over the phone's edge. On the phone every <select> and date / datetime input opens one of
+   * these sheets instead; they sit in their own layer above any dialog, so the dialog underneath stays open.
+   * The desktop design keeps the native controls.
+   */
+  var DEMO_TODAY = '2026-10-02';
+  var fxLayer = null;
+  var fxTouchAt = 0;
+
+  function fxClose() {
+    if (!fxLayer) return;
+    var l = fxLayer;
+    fxLayer = null;
+    l.querySelectorAll('.show').forEach(function (el) { el.classList.remove('show'); });
+    setTimeout(function () { l.remove(); }, 300);
+  }
+
+  // Same card as every other popup (.dialog: white, 14px corners, title + ×, pill buttons), centred in the phone.
+  function fxOpen(title, body, cls) {
+    fxClose();
+    var l = document.createElement('div');
+    l.className = 'fx-layer';
+    l.innerHTML = '<div class="mask light" data-fx-close></div><div class="dialog fx-sheet ' + (cls || '') + '" role="dialog" aria-modal="true">' +
+      '<div class="ed-head"><h3>' + esc(title) + '</h3><button type="button" class="ed-x" data-fx-close aria-label="Close">' + I.close + '</button></div>' + body + '</div>';
+    document.body.appendChild(l);
+    fxLayer = l;
+    var card = l.querySelector('.fx-sheet');
+    card.style.top = Math.max(24, (window.innerHeight - card.offsetHeight) / 2) + 'px';
+    l.addEventListener('click', function (e) { if (e.target.closest('[data-fx-close]')) fxClose(); });
+    var shown = false;
+    var show = function () { if (shown) return; shown = true; l.getBoundingClientRect(); l.querySelectorAll('.mask,.dialog').forEach(function (el) { el.classList.add('show'); }); };
+    requestAnimationFrame(function () { requestAnimationFrame(show); });
+    setTimeout(show, 40);
+    return card;
+  }
+
+  function fxFire(el) {
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  // The sheet title: the field's own label, else its aria-label, else a generic word.
+  function fxTitle(el, fallback) {
+    var box = el.closest('.ed-f, .lx-range label, label');
+    var lab = box && (box.querySelector('.field-label') || (box.tagName === 'LABEL' ? box : null));
+    // A <label> wrapping the control: only its own words, not the option texts inside it.
+    var text = !lab ? '' : lab === box && box.contains(el) ? Array.prototype.filter.call(box.childNodes, function (n) { return n.nodeType === 3; }).map(function (n) { return n.textContent; }).join(' ') : lab.textContent;
+    if (!text) { var prev = el.previousElementSibling; text = prev && /LABEL/.test(prev.tagName) ? prev.textContent : ''; }
+    text = (text || el.getAttribute('aria-label') || fallback).replace(/\*/g, '').trim();
+    return text.length > 40 ? fallback : text;
+  }
+
+  var pickLine = function (x) { return '<b>' + esc(x.label) + '</b>' + (x.sub ? '<small>' + esc(x.sub) + '</small>' : ''); };
+
+  // A list of { value, label, sub, note, disabled } in the in-frame layer, searchable when long; onPick(item).
+  function pickSheet(title, items, value, onPick) {
+    var search = items.length > 8;
+    var sheet = fxOpen(title, (search ? '<label class="search sm pk-search">' + I.search + '<input type="search" data-fx-q placeholder="Search" /></label>' : '') +
+      '<div class="pk-list">' + items.map(function (x, i) {
+        var on = String(x.value) === String(value);
+        return '<button type="button" class="pk-item' + (on ? ' on' : '') + '" data-fx-i="' + i + '"' + (x.disabled ? ' disabled' : '') + '>' +
+          '<span class="pk-text">' + pickLine(x) + (x.note ? '<em>' + esc(x.note) + '</em>' : '') + '</span><i class="pk-mark">' + (on ? I.check : '') + '</i></button>';
+      }).join('') + '<p class="pk-empty" hidden>Nothing matches</p></div>', 'fx-select');
+    var cur = sheet.querySelector('.pk-item.on');
+    if (cur) cur.scrollIntoView({ block: 'center' });
+    if (search) sheet.querySelector('[data-fx-q]').addEventListener('input', function (e) {
+      var q = norm(e.target.value.trim());
+      var shown = 0;
+      sheet.querySelectorAll('.pk-item').forEach(function (b) { b.hidden = !!q && norm(b.textContent).indexOf(q) < 0; if (!b.hidden) shown++; });
+      sheet.querySelector('.pk-empty').hidden = shown > 0;
+    });
+    sheet.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-fx-i]');
+      if (!b) return;
+      fxClose();
+      onPick(items[Number(b.dataset.fxI)]);
+    });
+  }
+
+  function selectSheet(sel) {
+    var items = Array.prototype.filter.call(sel.options, function (o) { return !o.hidden; }).map(function (o) { return { value: o.value, label: o.textContent, disabled: o.disabled }; });
+    pickSheet(fxTitle(sel, 'Choose'), items, sel.value, function (x) {
+      if (sel.value !== x.value) { sel.value = x.value; fxFire(sel); }
+    });
+  }
+
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  var pad2 = function (n) { return (n < 10 ? '0' : '') + n; };
+
+  // A month calendar (Sunday first, like the board's pickers) for <input type="date"> (a tap picks and closes) and datetime-local (day + time, then Done).
+  function dateSheet(inp) {
+    var withTime = inp.type === 'datetime-local';
+    var parts = String(inp.value || '').split('T');
+    var picked = /^\d{4}-\d{2}-\d{2}$/.test(parts[0]) ? parts[0] : '';
+    var time = (parts[1] || '').slice(0, 5) || '08:00';
+    var view = (picked || DEMO_TODAY).slice(0, 7);
+    var min = inp.min ? inp.min.slice(0, 10) : '', max = inp.max ? inp.max.slice(0, 10) : '';
+    var grid = function () {
+      var y = Number(view.slice(0, 4)), m = Number(view.slice(5, 7)) - 1;
+      var lead = new Date(y, m, 1).getDay();
+      var days = new Date(y, m + 1, 0).getDate();
+      var html = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(function (d) { return '<span class="cal-wd">' + d + '</span>'; }).join('');
+      for (var i = 0; i < lead; i++) html += '<span></span>';
+      for (var d = 1; d <= days; d++) {
+        var k = view + '-' + pad2(d);
+        var off = (min && k < min) || (max && k > max);
+        html += '<button type="button" class="cal-day' + (k === picked ? ' on' : '') + (k === DEMO_TODAY ? ' today' : '') + '" data-fx-day="' + k + '"' + (off ? ' disabled' : '') + '>' + d + '</button>';
+      }
+      return '<div class="cal-nav"><button type="button" data-fx-mon="-1" aria-label="Previous month">' + I.pLeft + '</button><b>' + MONTHS[m] + ' ' + y + '</b>' +
+        '<button type="button" data-fx-mon="1" aria-label="Next month">' + I.pRight + '</button></div><div class="cal-grid">' + html + '</div>';
+    };
+    var sheet = fxOpen(fxTitle(inp, withTime ? 'Date & time' : 'Date'), '<div class="fx-cal-body">' + grid() + '</div>' +
+      (withTime ? '<div class="cal-time"><span>Time</span><input class="text-input" data-fx-h inputmode="numeric" maxlength="2" value="' + time.slice(0, 2) + '" aria-label="Hour" /><b>:</b>' +
+        '<input class="text-input" data-fx-m inputmode="numeric" maxlength="2" value="' + time.slice(3, 5) + '" aria-label="Minute" /><small>24-hour</small></div>' : '') +
+      '<div class="actions">' + (inp.required ? '<button type="button" class="pill-btn outline dark" data-fx-close>Cancel</button>' : '<button type="button" class="pill-btn outline dark" data-fx-clear>Clear</button>') +
+      (withTime ? '<button type="button" class="pill-btn primary" data-fx-done>Done</button>' : '<button type="button" class="pill-btn primary" data-fx-day="' + DEMO_TODAY + '">Today</button>') + '</div>', 'fx-date');
+    var body = sheet.querySelector('.fx-cal-body');
+    var apply = function (v) { fxClose(); if (inp.value !== v) { inp.value = v; fxFire(inp); } };
+    sheet.addEventListener('click', function (e) {
+      var b;
+      if ((b = e.target.closest('[data-fx-mon]'))) {
+        var d = new Date(Number(view.slice(0, 4)), Number(view.slice(5, 7)) - 1 + Number(b.dataset.fxMon), 1);
+        view = d.getFullYear() + '-' + pad2(d.getMonth() + 1);
+        body.innerHTML = grid();
+      } else if ((b = e.target.closest('[data-fx-day]'))) {
+        picked = b.dataset.fxDay;
+        if (!withTime) return apply(picked);
+        view = picked.slice(0, 7);
+        body.innerHTML = grid();
+      } else if (e.target.closest('[data-fx-clear]')) apply('');
+      else if (e.target.closest('[data-fx-done]')) {
+        if (!picked) picked = DEMO_TODAY;
+        var h = Math.min(23, Math.max(0, parseInt(sheet.querySelector('[data-fx-h]').value, 10) || 0));
+        var mi = Math.min(59, Math.max(0, parseInt(sheet.querySelector('[data-fx-m]').value, 10) || 0));
+        apply(picked + 'T' + pad2(h) + ':' + pad2(mi));
+      }
+    });
+  }
+
+  function fxTarget(t) {
+    if (desk() || !t || !t.closest) return null;
+    var el = t.closest('select, input[type="date"], input[type="datetime-local"]');
+    return el && !el.disabled && !el.readOnly && !el.closest('form[data-locked]') ? el : null;
+  }
+  function fxShow(el) { el.blur(); if (el.tagName === 'SELECT') selectSheet(el); else dateSheet(el); }
+  // The browser opens its own list on mousedown (desktop) or on the tap (touch), so both are stopped and the sheet opens on the tap.
+  document.addEventListener('mousedown', function (e) { if (fxTarget(e.target)) e.preventDefault(); }, true);
+  document.addEventListener('touchend', function (e) {
+    var el = fxTarget(e.target);
+    if (!el) return;
+    e.preventDefault();
+    fxTouchAt = Date.now();
+    fxShow(el);
+  }, true);
+  document.addEventListener('click', function (e) {
+    var el = fxTarget(e.target);
+    if (!el) return;
+    e.preventDefault();
+    if (Date.now() - fxTouchAt > 600) fxShow(el);
+  }, true);
+  document.addEventListener('keydown', function (e) {
+    var el = fxTarget(e.target);
+    if (!el || !(e.key === 'Enter' || e.key === ' ' || (e.altKey && e.key === 'ArrowDown'))) return;
+    e.preventDefault();
+    fxShow(el);
+  }, true);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && fxLayer) { e.stopPropagation(); fxClose(); } }, true);
+
   // A dialog asking for a required reason / note; onOk(text).
   function reasonDialog(title, text, label, placeholder, okLabel, onOk) {
     var html = '<div class="mask light" data-action="close"></div><form class="dialog" data-dialog><h3>' + esc(title) + '</h3>' +
@@ -469,6 +670,7 @@
       closeOverlay();
       onOk(v);
     });
+    return wrap;
   }
 
   // Asks before something that cannot be undone (delete, mark not valid); onOk() runs on confirm.
@@ -485,6 +687,7 @@
       closeOverlay();
       onOk();
     });
+    return wrap;
   }
 
   // ---------- desktop tables ----------
@@ -674,6 +877,10 @@
   function tfCount() { return Object.keys(state.tf).filter(function (k) { return state.tf[k]; }).length; }
 
   views.tickets = function () {
+    // Towage | Buoys tabs (buoys.js); with Buoys on, buoys.js draws the whole list.
+    var kinds = api.kindTabs ? api.kindTabs() : '';
+    var other = api.kindView && api.kindView();
+    if (other) return other;
     var filters = ['All', CANCEL_REQ, 'Pending', 'Confirmed', 'New Update', 'Done', 'Not Valid', 'Cancelled'];
     var mine = myTickets();
     var list = mine.filter(function (t) {
@@ -685,7 +892,7 @@
       var count = function (f) {
         return mine.filter(function (t) { return f === CANCEL_REQ ? held(t) : f === 'All' || t.status === f; }).length;
       };
-      return header({ logo: true }) + '<div class="page dt-page">' + dataTable({
+      return header({ logo: true }) + '<div class="page dt-page">' + kinds + dataTable({
         source: state.tickets,
         list: list.filter(function (t) { return matches([t.id, t.vessel, t.port, t.by, t.note].join(' ')); }),
         noun: 'ticket',
@@ -718,7 +925,7 @@
     var total = list.length;
     state.ticketPage = Math.min(state.ticketPage, Math.max(1, Math.ceil(total / 20)));
     var page = list.slice((state.ticketPage - 1) * 20, state.ticketPage * 20);
-    return header({ logo: true }) +
+    return header({ logo: true }) + kinds +
       '<div class="strip"><div class="strip-filters' + (tfCount() ? ' on' : '') + '" data-action="filters">' + I.filter + 'Filters' + (tfCount() ? ' · ' + tfCount() : '') + '</div>' +
       '<div class="chips">' + filters.map(function (f) {
         return '<button class="chip' + (f === state.ticketFilter ? ' on' : '') + '" data-filter="' + f + '">' + f + '</button>';
@@ -989,7 +1196,7 @@
         source: state.users, list: list, noun: 'user', placeholder: 'Search by name or email',
         add: { action: 'new-user', label: 'Add user' },
         tools: '<div class="dt-chips">' + ['ACTIVE', 'BANNED', 'ALL'].map(function (s) {
-          return '<button class="' + (s === state.userTab ? 'on' : '') + '" data-usertab="' + s + '">' + s + '</button>';
+          return '<button class="' + (s === state.userTab ? 'on' : '') + '" data-usertab="' + s + '">' + s.charAt(0) + s.slice(1).toLowerCase() + '</button>';
         }).join('') + '</div>',
         cols: [
           { key: 'name', label: 'Name', sort: 'text', cell: function (u) { return '<b>' + esc(u.name) + '</b>'; } },
@@ -998,7 +1205,7 @@
           { key: 'phone', label: 'Phone', sort: 'text', cell: function (u) { return esc(u.phone || 'N/A'); } },
           { key: 'company', label: 'Company', sort: 'text', cell: function (u) { return esc(u.company || 'N/A'); } },
           { key: 'role', label: 'Role', sort: 'text', cell: function (u) { return pill(u.role, D.roleColors[u.role] || '#4caf50'); } },
-          { key: 'status', label: 'Status', sort: 'text', cell: function (u) { return '<span class="dt-status ' + (u.status === 'ACTIVE' ? 'ok' : '') + '">' + esc(u.status) + '</span>'; } }
+          { key: 'status', label: 'Status', sort: 'text', cell: function (u) { return '<span class="dt-status ' + (u.status === 'ACTIVE' ? 'ok' : '') + '">' + esc(String(u.status || '').charAt(0) + String(u.status || '').slice(1).toLowerCase()) + '</span>'; } }
         ],
         actions: function (u, i) { return btn('', 'data-edit-user="' + i + '"', 'Edit') + btn('danger', 'data-del="users:' + i + '"', 'Delete'); }
       }));
@@ -1374,7 +1581,7 @@
 
   // The drawer's menu, which is also the desktop sidebar: [emoji, label, route], filtered by role.
   function navItems() {
-    return [['🎫', 'All Tickets', 'tickets'], ['🗓️', 'Plan Board', 'board'], ['🗂️', 'History', 'history'], ['📒', 'Ledger', 'ledger'], ['👤', 'Profile', 'profile'], ['🔔', 'Notifications', 'notifications'], ['⚙️', 'Admin Panel', 'admin']]
+    return [['🎫', 'All Tickets', 'tickets'], ['🗓️', 'Plan Board', 'board'], ['⚓', 'Buoy Board', 'buoy-board'], ['🗂️', 'History', 'history'], ['📒', 'Ledger', 'ledger'], ['👤', 'Profile', 'profile'], ['🔔', 'Notifications', 'notifications'], ['⚙️', 'Admin Panel', 'admin']]
       .filter(function (it) { return allowed(it[2]); });
   }
 
@@ -1385,9 +1592,12 @@
     return D.admin.filter(function (a) { return /^admin\//.test(a.route) && allowed(a.route); }).map(function (a) { return [a.icon, a.title, a.route]; });
   }
 
+  // The heading over those tables: accountants get the ledger's tables, MOD the buoy tables (Buoys operator).
+  function tablesTitle() { return user.role === 'MOD' ? 'Buoy tables' : 'Ledger tables'; }
+
   function navOn(route, it) {
     if (it[2] === 'admin/currencies' && route === 'admin/fx-rates') return true;
-    return route === it[2] || (it[2] === 'tickets' && /^tickets/.test(route)) || (it[2] === 'admin' && /^admin/.test(route)) ||
+    return route === it[2] || (it[2] === 'tickets' && /^(tickets|buoys)/.test(route)) || (it[2] === 'admin' && /^admin/.test(route)) ||
       (it[2] === 'ledger' && /^ledger/.test(route));
   }
 
@@ -1410,7 +1620,7 @@
         var on = navOn(route, it);
         return '<a class="dk-item' + (on ? ' on' : '') + '" data-go="' + it[2] + '">' + emoji(it[0]) + '<span>' + it[1] + '</span></a>' +
           (it[2] === 'admin' && admin ? '<div class="dk-subs">' + admin + '</div>' : '');
-      }).join('') + (tables.length ? '<div class="dk-subs dk-tables"><div class="dk-sub-h' + (tables.some(function (it) { return navOn(route, it); }) ? ' on' : '') + '">Ledger tables</div>' + tables.map(function (it) {
+      }).join('') + (tables.length ? '<div class="dk-subs dk-tables"><div class="dk-sub-h' + (tables.some(function (it) { return navOn(route, it); }) ? ' on' : '') + '">' + tablesTitle() + '</div>' + tables.map(function (it) {
         return '<a class="dk-sub' + (navOn(route, it) ? ' on' : '') + '" data-go="' + esc(it[2]) + '">' + esc(it[1]) + '</a>';
       }).join('') + '</div>' : '') + '</nav>' +
       '<div class="dk-foot">' +
@@ -1452,7 +1662,7 @@
       items.map(function (it) {
         var on = route === it[2] || (it[2] === 'tickets' && /^tickets/.test(route)) || (it[2] === 'admin' && /^admin/.test(route));
         return '<div class="drawer-item' + (on ? ' on' : '') + '" data-go="' + it[2] + '">' + emoji(it[0]) + it[1] + '</div>';
-      }).join('') + (tableItems().length ? '<div class="drawer-sep"></div><div class="drawer-h">Ledger tables</div>' + tableItems().map(function (it) {
+      }).join('') + (tableItems().length ? '<div class="drawer-sep"></div><div class="drawer-h">' + tablesTitle() + '</div>' + tableItems().map(function (it) {
         return '<div class="drawer-item' + (navOn(route, it) ? ' on' : '') + '" data-go="' + it[2] + '">' + emoji(it[0]) + it[1] + '</div>';
       }).join('') : '') + '<div class="drawer-sep"></div>' +
       '<div class="drawer-item" data-action="switch-role">' + emoji('🔁') + 'Switch role (demo)</div>' +
@@ -1714,10 +1924,16 @@
     if (m) view = views.ticket(m[1]);
     else if ((m = route.match(/^admin\/users\/edit\/(\d+)$/))) view = views['admin/users/new'](Number(m[1]));
     else if (views[route]) view = views[route]();
+    // Routes with an id at the end (buoys/t/B2605) use the view registered as '<prefix>/:id'.
+    else if ((m = route.match(/^(.+)\/([^\/]+)$/)) && views[m[1] + '/:id']) view = views[m[1] + '/:id'](m[2]);
     else { go('tickets'); return; }
     // The plan board and History are React islands (window.HVSBoard, built from src/board); they own #board-root.
     if (window.HVSBoard) window.HVSBoard.unmount();
+    // The sidebar is rebuilt on every render; keep its scroll so picking a menu item doesn't jump it back to the top.
+    var nav = app.querySelector('.dk-nav');
+    var navY = nav ? nav.scrollTop : 0;
     app.innerHTML = desk() ? '<div class="dk">' + deskSide() + '<main class="dk-main">' + view + '</main>' + deskDemo() + '</div>' : view;
+    if ((nav = app.querySelector('.dk-nav'))) nav.scrollTop = navY;
     app.querySelectorAll('form[data-locked] input, form[data-locked] textarea, form[data-locked] button').forEach(function (el) { el.disabled = true; });
     var boardRoot = app.querySelector('#board-root');
     if (boardRoot && window.HVSBoard) window.HVSBoard.mount(boardRoot, { toast: toast, notify: notify, view: boardRoot.dataset.view });
@@ -2185,15 +2401,17 @@
         save('vessels', state.vessels);
         go('admin/vessels');
         break;
-      default: break;
+      // Forms of the extensions (buoys.js: 'buoy-order').
+      default: if (forms[form.dataset.form]) forms[form.dataset.form](form, v); break;
     }
   });
 
   // ---------- extensions (Phase 4 screens live in board.js) ----------
 
   var actions = { 'settings-edit': editSettings };
+  var forms = {};
   var api = {
-    D: D, state: state, user: user, views: views, actions: actions, I: I,
+    D: D, state: state, user: user, views: views, actions: actions, forms: forms, I: I,
     esc: esc, emoji: emoji, store: store, save: save, go: go, toast: toast, statusBar: statusBar,
     header: header, search: search, fab: fab, pager: pager, render: function () { render(); },
     desk: desk, manageTable: manageTable, dataTable: dataTable, deskPage: deskPage, dash: dash, pill: pill, btn: btn,

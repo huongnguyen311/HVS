@@ -3225,6 +3225,13 @@ body.desk .hdr-menu {
   color: var(--red);
 }
 
+/* Kept in its slot (so the buttons line up row to row) but not usable. */
+.dt-btn:disabled {
+  border-color: var(--line);
+  color: #c4c8cf;
+  cursor: not-allowed;
+}
+
 .dt-btn.success {
   border-color: var(--green-2);
   background: var(--green-2);
@@ -3453,6 +3460,15 @@ body:not(.desk) .dt-tools:empty {
 
 body:not(.desk) .dt-chips {
   flex-wrap: nowrap;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+/* A long tab label scrolls with the row; it never wraps inside its pill. */
+body:not(.desk) .dt-chips button {
+  flex: none;
+  white-space: nowrap;
 }
 
 body:not(.desk) .dt-bar-r {

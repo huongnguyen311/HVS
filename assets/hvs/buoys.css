@@ -1,0 +1,2056 @@
+/* Buoys (Cầu phao) · batch 1: Towage | Buoys tabs, buoy list, client order, ticket page, buoy board.
+   New classes only (by-*, bb-*, kind-tabs); nothing here restyles the existing phone screens. */
+
+/* ---------- Towage | Buoys tabs ---------- */
+
+.kind-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 var(--pad) 10px;
+  padding: 3px;
+  border-radius: 10px;
+  background: #e4e5e7;
+}
+
+.kind-tabs button {
+  flex: 1;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.kind-tabs button.on {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14);
+}
+
+body.desk .kind-tabs {
+  display: inline-flex;
+  margin: 0 0 16px;
+}
+
+body.desk .kind-tabs button {
+  flex: none;
+  min-width: 120px;
+  padding: 0 18px;
+}
+
+/* ---------- buoy list (phone) ---------- */
+
+/* The strip, chips and pager are the towage list's own (app.css). */
+.by-list {
+  padding-top: 4px;
+}
+
+.by-empty {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--muted);
+}
+
+.by-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 5px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  vertical-align: -1px;
+}
+
+.by-stage {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 15px;
+  color: #fff;
+  background: var(--c);
+  white-space: nowrap;
+}
+
+/* ---------- client order ---------- */
+
+.by-order .by-fld {
+  padding-top: 11px;
+  padding-bottom: 11px;
+}
+
+.by-select {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: 16px;
+  color: var(--text);
+}
+
+.by-hint {
+  margin: 8px 2px 12px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--muted);
+}
+
+.by-hint.sm {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+}
+
+/* ---------- ticket page ---------- */
+
+.by-page {
+  padding-bottom: 130px;
+}
+
+body.desk .by-page {
+  padding-bottom: 48px;
+}
+
+.by-head {
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.by-head-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.by-head-id h2 {
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 700;
+}
+
+.by-head-id p {
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--muted);
+}
+
+.by-head-pills {
+  display: flex;
+  gap: 6px;
+}
+
+/* Stage stepper: every step on a desktop; on a phone only the current step keeps its label. */
+.by-steps {
+  display: flex;
+  margin: 16px 0 4px;
+  padding: 0;
+  list-style: none;
+  counter-reset: none;
+}
+
+.by-steps li {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: 11.5px;
+  line-height: 14px;
+  color: #9ca3af;
+}
+
+.by-steps li::before {
+  content: "";
+  position: absolute;
+  top: 11px;
+  left: -50%;
+  width: 100%;
+  height: 2px;
+  background: #e5e7eb;
+}
+
+.by-steps li:first-child::before {
+  display: none;
+}
+
+.by-steps li.past::before,
+.by-steps li.now::before {
+  background: var(--blue-2);
+}
+
+.by-steps i {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid #d1d5db;
+  border-radius: 50%;
+  background: var(--surface);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.by-steps i svg {
+  width: 13px;
+  height: 13px;
+}
+
+.by-steps li.past i {
+  border-color: var(--blue-2);
+  background: var(--blue-2);
+  color: #fff;
+}
+
+.by-steps li.now i {
+  border-color: var(--blue-2);
+  color: var(--blue-2);
+  box-shadow: 0 0 0 4px #dbeafe;
+}
+
+.by-steps li.past,
+.by-steps li.now {
+  color: var(--text);
+}
+
+.by-steps li.now {
+  font-weight: 700;
+}
+
+.by-steps span {
+  display: block;
+  margin-top: 5px;
+  padding: 0 2px;
+}
+
+.by-steps.off li.past i {
+  border-color: #9ca3af;
+  background: #9ca3af;
+}
+
+.by-steps.off li.past::before {
+  background: #9ca3af;
+}
+
+.by-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+/* Desktop: the same size as the cards' Edit buttons. */
+.by-acts .pill-btn {
+  height: 30px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+/* On a phone: one row of small pills (the cards' Edit size). New Update and Cancel outline on the left, the
+   next step filled on the right; the row wraps if the labels don't fit. */
+body:not(.desk) .by-acts {
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+body:not(.desk) .by-acts .pill-btn {
+  flex: none;
+  height: 30px;
+  padding: 0 12px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+body:not(.desk) .by-acts .pill-btn.primary {
+  margin-left: auto;
+}
+
+body:not(.desk) .by-acts .pill-btn.outline {
+  padding: 0 10px;
+}
+
+.pill-btn.outline.by-danger {
+  border-color: #fca5a5;
+  color: var(--red);
+}
+
+.by-note {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted);
+}
+
+.by-banner {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.by-banner b,
+.by-banner span {
+  display: block;
+}
+
+.by-banner.cancel {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.by-banner.nu {
+  background: #eff6ff;
+  color: #1e40af;
+}
+
+.by-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.by-col {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+body.desk .by-grid {
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+}
+
+.by-sec {
+  padding: 14px 16px 16px;
+}
+
+.by-sec-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.by-sec-h h3 {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.by-kv {
+  display: grid;
+  grid-template-columns: minmax(96px, 38%) 1fr;
+  gap: 7px 12px;
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 19px;
+}
+
+.by-kv dt {
+  color: var(--muted);
+}
+
+.by-kv dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.by-sub {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.by-miss {
+  color: #b45309;
+}
+
+.by-tag {
+  display: inline-block;
+  margin: 0 5px 4px 0;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #eef2ff;
+  font-size: 12px;
+  color: #3730a3;
+}
+
+.by-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--blue-2);
+}
+
+.by-file svg {
+  width: 13px;
+  height: 13px;
+}
+
+.by-warn {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  font-size: 13px;
+  line-height: 18px;
+  color: #92400e;
+}
+
+.by-warn b,
+.by-warn span,
+.by-warn em {
+  display: block;
+}
+
+.by-warn em {
+  margin-top: 3px;
+  font-style: normal;
+  color: #b45309;
+}
+
+.by-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.by-tbl th {
+  padding: 6px 6px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.by-tbl td {
+  padding: 7px 6px;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
+}
+
+.by-tbl .r {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.by-tbl small {
+  font-size: 11px;
+}
+
+.by-docs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.by-docs li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.by-docs li b {
+  color: var(--text);
+}
+
+.by-docs li.due {
+  border-style: solid;
+  background: #f9fafb;
+}
+
+.by-log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.by-log li {
+  padding: 7px 0 7px 14px;
+  border-left: 2px solid #e5e7eb;
+  font-size: 13px;
+  line-height: 17px;
+}
+
+.by-log li span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ---------- buoy board (desktop) ---------- */
+
+.by-desk-only {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 20px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.by-desk-only b {
+  font-size: 16px;
+  color: var(--text);
+}
+
+.by-desk-only .pill-btn {
+  margin-top: 8px;
+}
+
+/* Same skin as the Plan Board (src/board/board.css "Excel skin"): the toolbar is the board's own .bbar,
+   and the grid uses its colours, lines and font. */
+.bb-page {
+  --xl: #94a3b8;
+  --xl-line: #cbd5e1;
+  --xl-dot: #dbe1ea;
+  --xl-band: #e8efff;
+  --xl-band-text: #1440b8;
+  --xl-head: #f8fafc;
+  --xl-font: Calibri, Carlito, Arial, Helvetica, sans-serif;
+  --row-h: 40px;
+}
+
+.bb-page .bbar {
+  position: sticky;
+  top: var(--top-h, 72px);
+  z-index: 6;
+}
+
+.bb-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--blue);
+}
+
+.bb-tool svg {
+  width: 13px;
+  height: 13px;
+}
+
+.bb-wrap {
+  overflow: auto;
+  max-height: calc(100vh - 190px);
+  background: #fff;
+}
+
+.bb {
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  font-family: var(--xl-font);
+  font-size: 13.33px; /* 10pt */
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--text);
+}
+
+.bb th,
+.bb td {
+  padding: 0 2px;
+  border-right: 1px solid var(--xl-line);
+  border-bottom: 1px dotted var(--xl-dot);
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* ---- header: grey, 1px lines, a 2px line under it; the month title is the sheet's grey band ---- */
+.bb thead th {
+  position: sticky;
+  z-index: 3;
+  height: 21px;
+  border-bottom: 1px solid var(--xl-line);
+  background: var(--xl-head);
+  font-weight: 700;
+}
+
+.bb thead tr:first-child th {
+  top: 0;
+}
+
+.bb thead tr:last-child th,
+.bb thead th[rowspan] {
+  top: 21px;
+  border-bottom: 2px solid var(--xl);
+}
+
+.bb thead th[rowspan] {
+  top: 0;
+}
+
+.bb thead .bb-title {
+  background: #eef2f7;
+  color: var(--navy);
+  letter-spacing: 0.2px;
+}
+
+.bb .bb-dh small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.bb thead .bb-dh {
+  height: 32px;
+}
+
+.bb thead .sun {
+  color: #dc2626;
+}
+
+.bb thead .today {
+  background: var(--blue);
+  color: #fff;
+}
+
+.bb tbody .today {
+  box-shadow: inset 0 0 0 9999px rgba(20, 99, 255, 0.07);
+}
+
+/* ---- frozen left block (No. → row label), closed by the sheet's 2px line ---- */
+.bb .bb-c0,
+.bb .bb-c1,
+.bb .bb-c2,
+.bb .bb-c3,
+.bb .bb-c4,
+.bb .bb-c5,
+.bb .bb-lab {
+  position: sticky;
+  z-index: 2;
+}
+
+.bb .bb-c0 { left: 0; }
+.bb .bb-c1 { left: 34px; }
+.bb .bb-c2 { left: 126px; }
+.bb .bb-c3 { left: 184px; }
+.bb .bb-c4 { left: 242px; }
+
+.bb .bb-c5,
+.bb .bb-lab {
+  left: 312px;
+  border-right: 2px solid var(--xl);
+}
+
+.bb thead .bb-c0,
+.bb thead .bb-c1,
+.bb thead .bb-c2,
+.bb thead .bb-c3,
+.bb thead .bb-c4,
+.bb thead .bb-c5 {
+  z-index: 5;
+}
+
+.bb tbody td {
+  height: 21px;
+  background: var(--tint, #fff);
+}
+
+.bb tbody .bb-c1 small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.bb tbody .bb-lab {
+  font-weight: 400;
+  text-align: left;
+  padding-left: 6px;
+}
+
+.bb tr.bb-v.first > td {
+  border-top: 1px solid var(--xl-line);
+}
+
+.bb tr.bb-v > td {
+  height: var(--row-h);
+}
+
+/* ---- area bands: one band across the board, the cyan label stays at the left edge ---- */
+.bb tr.bb-sec > td {
+  height: 21px;
+  padding: 0;
+  border-top: 2px solid var(--xl);
+  border-right: 0;
+  border-bottom: 1px solid var(--xl-line);
+  background: var(--xl-head);
+  text-align: left;
+}
+
+.bb-sec-label {
+  position: sticky;
+  left: 0;
+  display: inline-block;
+  height: 19px;
+  padding: 0 10px 0 8px;
+  border-right: 1px solid var(--xl-line);
+  background: var(--xl-band);
+  color: var(--xl-band-text);
+  line-height: 19px;
+  white-space: nowrap;
+}
+
+.bb-sec-label em {
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 400;
+}
+
+/* ---- blocks: merged cells edge to edge, dotted border, black text (like the Plan Board's bars) ---- */
+.bb td.bb-span {
+  padding: 0;
+}
+
+.bb-tk {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  height: calc(var(--row-h) - 1px);
+  padding: 0 4px;
+  overflow: hidden;
+  border: 1px dotted var(--xl-dot);
+  background: var(--bc);
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+}
+
+.bb-tk b,
+.bb-tk span {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.bb-tk span {
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.bb-st {
+  display: inline-block;
+  margin-left: 3px;
+  padding: 0 4px;
+  font-family: var(--font);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 14px;
+  vertical-align: 1px;
+  color: #fff;
+}
+
+.bb-tk:hover,
+.bb-blk:hover {
+  box-shadow: inset 0 0 0 2px var(--blue);
+}
+
+/* Not yet accepted: white with a dashed frame and the owner's colour as a thick left bar (no stripes, so the
+   text stays readable and the block stands out from any area tint), like the Plan Board's dashed placeholders. */
+.bb-tk.wait {
+  padding-left: 11px;
+  border: 1.5px dashed var(--xl);
+  background: #fff;
+  box-shadow: inset 7px 0 0 var(--bc);
+}
+
+.bb-tk.wait:hover {
+  box-shadow: inset 7px 0 0 var(--bc), inset 0 0 0 2px var(--blue);
+}
+
+.bb-tk.done {
+  opacity: 0.55;
+}
+
+.bb-tk.cutl {
+  border-left: 2px dashed var(--xl);
+}
+
+.bb-tk.cutr {
+  border-right: 2px dashed var(--xl);
+}
+
+.bb-blk {
+  display: block;
+  width: 100%;
+  height: calc(var(--row-h) - 1px);
+  border: 1px dotted var(--xl-dot);
+  background: repeating-linear-gradient(135deg, #e2e8f0 0 6px, #f1f5f9 6px 12px);
+  color: var(--text-2);
+  font: inherit;
+}
+
+.bb-crane,
+.bb-along {
+  display: block;
+  height: 20px;
+  border: 1px dotted var(--xl-dot);
+  font-weight: 400;
+  line-height: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.bb-crane {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.bb-along {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+/* ---- waiting list first under each area band: pink like the board's NEW TICKET / PENDING band ---- */
+.bb tr.bb-wait > td {
+  height: auto;
+  padding: 4px 6px;
+  background: #fff7ed;
+  border-bottom: 1px solid var(--xl-line);
+}
+
+.bb .bb-wait-h {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  border-right: 2px solid var(--xl);
+  text-align: left;
+  font-size: 12px;
+  color: #c2410c;
+}
+
+.bb .bb-wait-l {
+  text-align: left;
+}
+
+/* The list stays beside the frozen label while the days scroll sideways. */
+.bb .bb-wait-l > div {
+  position: sticky;
+  left: 388px;
+  display: inline-block;
+  max-width: calc(100vw - var(--side-w, 248px) - 420px);
+}
+
+.bb-w {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  margin: 2px 14px 2px 0;
+  padding: 2px 6px;
+  border: 1px dotted var(--xl-dot);
+  background: #fff;
+  font: inherit;
+  color: var(--text);
+}
+
+.bb-w i {
+  align-self: center;
+  width: 10px;
+  height: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.22);
+  border-radius: 3px;
+}
+
+.bb-w span {
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.bb-w:hover {
+  box-shadow: inset 0 0 0 2px var(--blue);
+}
+
+.bb-none {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+/* Legend: the Plan Board's own (.blegend / .bsw: black text, square swatches with a black frame); only the
+   two marks that are not a fill are drawn here. */
+.bb-page .bsw i.dashed,
+.by-legend .blegend-grid i.dashed {
+  background: #fff;
+  border-style: dashed !important;
+}
+
+.bb-page .bsw i.blk,
+.by-legend .blegend-grid i.blk {
+  background: repeating-linear-gradient(135deg, #cbd5e1 0 2px, #f1f5f9 2px 4px);
+}
+
+/* The full legend (tap / click on the legend line), as the Plan Board's Legend popover. */
+.by-legend .blegend-help {
+  display: block;
+  padding-bottom: 8px;
+}
+
+.by-legend .blegend-grid {
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 12px;
+}
+
+/* ---------- documents (buoys-docs.js) ---------- */
+
+.by-doc-meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.by-doc-meta em {
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  color: #fff;
+}
+
+.by-doc-meta i {
+  font-style: normal;
+}
+
+.by-docs li[data-go] {
+  cursor: pointer;
+}
+
+.by-docs li[data-go]:hover {
+  border-color: var(--blue-2);
+}
+
+.by-versions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.by-versions a {
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.by-versions a.on {
+  border-color: var(--blue-2);
+  color: var(--blue-2);
+  font-weight: 600;
+}
+
+.by-dochead a[data-go] {
+  color: var(--blue-2);
+  cursor: pointer;
+}
+
+.by-docgrid {
+  display: grid;
+  gap: 14px;
+}
+
+body.desk .by-docgrid {
+  grid-template-columns: minmax(0, 1fr) 340px;
+  align-items: start;
+}
+
+.by-docgrid > div {
+  display: grid;
+  gap: 14px;
+}
+
+.by-tblwrap {
+  overflow-x: auto;
+}
+
+.by-lines td {
+  vertical-align: top;
+}
+
+.by-lines tr.off td {
+  color: #9ca3af;
+}
+
+.by-lines tr.bad td {
+  background: #fff7ed;
+}
+
+.by-lines small {
+  display: block;
+}
+
+.by-err {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #b45309;
+}
+
+.by-opt {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: #fef3c7;
+  font-size: 11px;
+  color: #92400e;
+}
+
+.by-took {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.by-took button {
+  padding: 2px 9px;
+  font-size: 12px;
+}
+
+.by-took button.on {
+  background: var(--blue-2);
+  color: #fff;
+}
+
+.by-lacts {
+  white-space: nowrap;
+}
+
+.by-lacts .dt-btn {
+  height: 26px;
+  margin-left: 4px;
+  padding: 0 9px;
+  font-size: 12px;
+}
+
+.by-tot dd {
+  text-align: right;
+}
+
+.by-pdf-h {
+  margin: 22px 0 10px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* The PDF preview: an A4-like sheet in the sample PDA / FDA layout. */
+.by-paper {
+  max-width: 900px;
+  padding: 28px 32px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.08);
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 13px;
+  color: #111;
+}
+
+.by-paper-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #111;
+}
+
+.by-paper-top b,
+.by-paper-top span {
+  display: block;
+}
+
+.by-paper-top .r {
+  text-align: right;
+}
+
+.by-paper h4 {
+  margin: 16px 0 12px;
+  text-align: center;
+  font-size: 17px;
+  letter-spacing: 0.5px;
+}
+
+.by-paper h4 i {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border: 1.5px solid #dc2626;
+  font-size: 12px;
+  font-style: normal;
+  color: #dc2626;
+}
+
+.by-paper-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 24px;
+  margin-bottom: 14px;
+}
+
+.by-paper-info div {
+  display: flex;
+  gap: 8px;
+}
+
+.by-paper-info span {
+  min-width: 130px;
+  color: #444;
+}
+
+.by-paper table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.by-paper th,
+.by-paper td {
+  padding: 4px 6px;
+  border: 1px solid #555;
+  text-align: right;
+}
+
+.by-paper th {
+  background: #eee;
+  text-align: center;
+}
+
+.by-paper td:nth-child(2) {
+  text-align: left;
+}
+
+.by-paper td:last-child {
+  text-align: left;
+  font-style: italic;
+}
+
+.by-paper-tot {
+  width: 380px;
+  margin: 10px 0 0 auto;
+}
+
+.by-paper-tot div {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+
+.by-paper-tot .big {
+  border-top: 1px solid #111;
+  font-size: 14px;
+}
+
+.by-paper-banks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.by-paper-banks > div {
+  padding: 8px 10px;
+  border: 1px solid #999;
+}
+
+.by-paper-banks span {
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.by-paper-banks p {
+  margin-top: 4px;
+}
+
+.by-paper-sign {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 28px;
+  padding-bottom: 40px;
+  font-weight: 700;
+}
+
+.by-mail .by-kv {
+  margin: 10px 0;
+}
+
+.by-mail-body {
+  max-height: 220px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  overflow: auto;
+  border-radius: 8px;
+  background: #f9fafb;
+  font-family: inherit;
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+
+.by-mail .actions {
+  flex-wrap: wrap;
+}
+
+/* ---------- setup and prices ---------- */
+
+.by-lock {
+  margin-left: 4px;
+  cursor: help;
+}
+
+.by-on {
+  color: var(--green);
+}
+
+.by-core {
+  margin: 0;
+  font-size: 14px;
+}
+
+.by-defcol,
+/* Tug provider card in the Companies toolbar: icon, label + company + bank summary, "Change ›" (ADMIN). */
+.by-tugp {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 6px 12px 6px 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+
+button.by-tugp {
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+button.by-tugp:hover {
+  border-color: #bfd3fb;
+  box-shadow: 0 1px 4px rgba(37, 99, 235, 0.12);
+}
+
+.by-tugp-ic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: #eaf1ff;
+  font-size: 18px;
+}
+
+.by-tugp-t {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 16px;
+}
+
+.by-tugp-t small {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.by-tugp-t b {
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.by-tugp-t em,
+.by-tug-n em {
+  font-size: 11.5px;
+  font-style: normal;
+  color: var(--green);
+}
+
+.by-tugp-t em.warn,
+.by-tug-n em.warn {
+  color: #b45309;
+}
+
+.by-tugp-t b,
+.by-tugp-t em {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.by-tugp-go {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 6px;
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--blue-2);
+}
+
+body:not(.desk) .by-tugp {
+  display: flex;
+  width: 100%;
+}
+
+body:not(.desk) .by-tugp-go {
+  margin-left: auto;
+}
+
+/* Tug provider picker: one card per company, the chosen one outlined in blue. */
+.by-tugdlg .ed-list {
+  border: 0;
+  overflow: visible;
+}
+
+.by-tugdlg .ed-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: none;
+  overflow: visible;
+}
+
+.by-tugdlg .ed-opt {
+  position: relative;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 40px 10px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.by-tugdlg .ed-opt:hover {
+  border-color: #c7d2fe;
+}
+
+.by-tugdlg .ed-opt input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.by-tugdlg .ed-opt > span {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.by-tugdlg .ed-opt::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  width: 18px;
+  height: 18px;
+  margin-top: -9px;
+  border: 1.5px solid #c4c7cc;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.by-tugdlg .ed-opt:has(input:checked) {
+  border-color: var(--blue-2);
+  background: #f3f7ff;
+  box-shadow: 0 0 0 1px var(--blue-2);
+}
+
+.by-tugdlg .ed-opt:has(input:checked)::after {
+  border: 5px solid var(--blue-2);
+  background: #fff;
+}
+
+.by-tugdlg .ed-opt:has(input:focus-visible) {
+  outline: 2px solid var(--blue-2);
+  outline-offset: 2px;
+}
+
+.by-tug-av {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #eef0f3;
+  font-size: 11.5px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-2);
+}
+
+.by-tugdlg .ed-opt:has(input:checked) .by-tug-av {
+  background: var(--blue-2);
+  color: #fff;
+}
+
+.by-tug-n {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 16px;
+}
+
+.by-tug-n b {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 19px;
+}
+
+.by-tug-n u {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #e7f6ec;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 17px;
+  text-decoration: none;
+  color: var(--green);
+}
+
+.by-tug-n small {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.by-tugdlg .dlg-text {
+  margin: 12px 0 2px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+body.desk .dialog.ed-dialog.by-tugdlg {
+  width: 460px;
+}
+
+.by-bank {
+  font-size: 12.5px;
+  line-height: 18px;
+}
+
+.by-bank + .by-bank {
+  margin-top: 4px;
+}
+
+.by-bank b {
+  font-weight: 600;
+}
+
+.by-bank small {
+  display: block;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.by-bank a {
+  color: var(--blue-2);
+  cursor: pointer;
+}
+
+.by-sof-pick {
+  cursor: pointer;
+}
+
+.by-sof-pick svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* ---------- ticket popups (buoys.js dress()): header · scrolling body · footer ---------- */
+
+.dialog.by-dlg {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(var(--app-h, 100vh) - 48px);
+  padding: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  box-shadow: 0 24px 56px rgba(15, 23, 42, 0.24), 0 0 0 1px rgba(15, 23, 42, 0.04);
+}
+
+body.desk .dialog.by-dlg {
+  width: 560px;
+  margin-left: -280px;
+}
+
+.by-dlg-h {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px 16px 14px 20px;
+  border-bottom: 1px solid #eef0f3;
+}
+
+.by-dlg-ic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #eff6ff;
+  font-size: 20px;
+}
+
+.by-dlg.tone-green .by-dlg-ic { background: #ecfdf5; }
+.by-dlg.tone-red .by-dlg-ic { background: #fef2f2; }
+
+.by-dlg-ic .emoji {
+  font-style: normal;
+  line-height: 1;
+}
+
+.by-dlg-t {
+  flex: 1;
+  min-width: 0;
+}
+
+.dialog.by-dlg .by-dlg-t h3 {
+  font-size: 17px;
+  line-height: 22px;
+  font-weight: 700;
+}
+
+.by-dlg-t p {
+  margin-top: 3px;
+  overflow: hidden;
+  font-size: 12.5px;
+  line-height: 16px;
+  color: #6b7280;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.by-dlg-x {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin: -4px -2px 0 0;
+  border-radius: 8px;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.by-dlg-x:hover {
+  background: #f3f4f6;
+  color: var(--text);
+}
+
+.by-dlg-x svg {
+  width: 18px;
+  height: 18px;
+}
+
+.by-dlg-b {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 16px 20px 20px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* The explanation: a quiet note box, tinted by the popup's tone. */
+.by-dlg-note {
+  margin-bottom: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f5f8ff;
+  font-size: 13px;
+  line-height: 19px;
+  color: #374151;
+}
+
+.by-dlg.tone-green .by-dlg-note { background: #f3fbf7; }
+.by-dlg.tone-red .by-dlg-note { background: #fff5f5; color: #7f1d1d; }
+
+/* Stage move: current stage → next stage. */
+.by-dlg-move {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 12.5px;
+}
+
+.by-dlg-move span,
+.by-dlg-move b {
+  padding: 4px 10px;
+  border-radius: 999px;
+  line-height: 16px;
+}
+
+.by-dlg-move span {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.by-dlg-move b {
+  background: #dcfce7;
+  color: #15803d;
+  font-weight: 700;
+}
+
+.by-dlg-move svg {
+  width: 14px;
+  height: 14px;
+  color: #9ca3af;
+}
+
+/* Group titles inside the form. */
+.by-dlg .ed-grid {
+  gap: 0 12px;
+}
+
+.by-dlg-sec {
+  margin: 18px 0 2px;
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.by-dlg .ed-grid > .ed-f:first-child .by-dlg-sec {
+  margin-top: 4px;
+}
+
+.dialog.by-dlg .field-label {
+  margin: 10px 0 5px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.dialog.by-dlg .text-input,
+.dialog.by-dlg select.text-input {
+  height: 38px;
+  border-color: #d1d5db;
+  border-radius: 8px;
+  font-size: 13.5px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dialog.by-dlg .text-area {
+  min-height: 76px;
+  border-color: #d1d5db;
+  border-radius: 8px;
+  font-size: 13.5px;
+}
+
+.dialog.by-dlg .text-input:focus,
+.dialog.by-dlg .text-area:focus {
+  border-color: var(--blue-2);
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.by-dlg .ed-list {
+  border-color: #d1d5db;
+}
+
+.by-dlg .ed-opt:hover {
+  background: #f9fafb;
+}
+
+.by-dlg .ed-check {
+  margin-top: 12px;
+  font-size: 13.5px;
+}
+
+/* Four particulars per row on a desktop, two on a phone. */
+body.desk .by-dlg .ed-f.q {
+  flex: 1 1 calc(25% - 9px);
+}
+
+/* SOF: the file name and the attach button on one row. */
+.by-dlg .ed-f.by-sof {
+  flex: 1 1 0;
+}
+
+.by-dlg .ed-f.by-sof-btn {
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+}
+
+.by-dlg .by-sof-pick {
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 8px;
+}
+
+.by-dlg .ed-msg {
+  margin-top: 14px;
+}
+
+.by-dlg .hold-err {
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: #b91c1c;
+}
+
+/* Footer: Cancel and the action on the right; the action takes the popup's tone. */
+.dialog.by-dlg .actions {
+  flex: none;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 20px;
+  border-top: 1px solid #eef0f3;
+  background: #f9fafb;
+}
+
+.dialog.by-dlg .actions .pill-btn {
+  flex: none;
+  width: auto;
+  min-width: 96px;
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.dialog.by-dlg .actions .pill-btn.outline {
+  background: #fff;
+}
+
+.by-dlg.tone-green .actions [type=submit] {
+  border-color: #16a34a;
+  background: #16a34a;
+}
+
+.by-dlg.tone-red .actions [type=submit] {
+  border-color: #dc2626;
+  background: #dc2626;
+  color: #fff;
+}
+
+/* Phone: the two buttons share the footer. */
+body:not(.desk) .dialog.by-dlg {
+  left: 12px;
+  right: 12px;
+}
+
+body:not(.desk) .dialog.by-dlg .actions .pill-btn {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.dt-table td.by-nw,
+.dt-table th.by-nw {
+  min-width: 118px;
+  white-space: nowrap;
+}
+
+/* A list that wraps in its cell instead of running under the sticky action buttons. */
+.dt-table td.by-wrap {
+  min-width: 140px;
+  max-width: 200px;
+  white-space: normal;
+}
+
+.by-dlg .ed-f.half {
+  flex: 1 1 calc(50% - 6px);
+}
+
+.by-dlg-b > .ed-grid:first-child > .ed-f:first-child > .field-label,
+.by-dlg-b > .by-dlg-note + .ed-grid > .ed-f:first-child > .field-label {
+  margin-top: 0;
+}
+
+.by-dlg-note + .ed-grid {
+  margin-top: 12px;
+}
+
+/* ---------- phone layout fixes (390px) ---------- */
+
+/* Documents card: name on the first line, state and total under it. */
+body:not(.desk) .by-docs li {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+body:not(.desk) .by-doc-meta {
+  justify-content: flex-start;
+}
+
+/* Cargo owners: each owner as a small card (name, then tonnage · method, then the buttons). */
+body:not(.desk) .by-owners thead {
+  display: none;
+}
+
+body:not(.desk) .by-owners tr {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+body:not(.desk) .by-owners td {
+  padding: 0;
+  border: 0;
+}
+
+body:not(.desk) .by-owners td:first-child {
+  width: 100%;
+  font-weight: 600;
+}
+
+body:not(.desk) .by-owners td.r:last-child {
+  margin-left: auto;
+}
+
+body:not(.desk) .by-owners td.r:nth-child(2)::after {
+  content: " ·";
+  color: var(--muted);
+}
+
+/* ---------- buoy board on a phone (.bb-phone): BUOY + row label frozen, the days scroll sideways ---------- */
+
+.bb-phone .bbar {
+  position: static;
+}
+
+.bb-phone .bb-wrap {
+  max-height: calc(var(--app-h) - 230px);
+  -webkit-overflow-scrolling: touch;
+}
+
+.bb .bb-mbuoy {
+  padding: 4px 5px;
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.15;
+}
+
+.bb .bb-mbuoy small {
+  display: block;
+  font-weight: 400;
+}
+
+.bb .bb-mbuoy .bb-lim {
+  margin-top: 2px;
+  color: var(--muted);
+}
+
+.bb-phone .bb tbody .bb-lab {
+  padding-left: 4px;
+}
+
+.bb-phone .bb .bb-wait-l > div {
+  max-width: calc(100vw - 180px);
+}
+
+/* Waiting list on a phone: one vessel per line, left aligned, as wide as the visible days. */
+.bb-phone .bb .bb-wait-l > div {
+  width: calc(100vw - 160px);
+  max-width: none;
+}
+
+.bb-phone .bb-w {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  width: 100%;
+  margin: 0 0 6px;
+  text-align: left;
+}
+
+.bb-phone .bb-w span {
+  flex-basis: 100%;
+  padding-left: 16px;
+}
+
+.bb-phone .bb-wrap {
+  margin-bottom: 120px;
+}
+
+/* ---------- type scale: the Plan Board's (desktop and phone alike) ----------
+   Calibri 10pt (13.33px) everywhere in the grid: headers, buoy and row-label cells, area labels and the waiting
+   list bold (700); the text on the bars (blocks, crane, alongside) and the day numbers regular (400), the vessel
+   name on a block bold as the sheet's first line; secondary lines (owner, limits, weekday) 12px like the legend. */
+.bb,
+.bb th,
+.bb td,
+.bb-tk,
+.bb-tk b,
+.bb-tk span,
+.bb-blk,
+.bb-crane,
+.bb-along,
+.bb-w,
+.bb-sec-label {
+  font-family: var(--xl-font);
+  font-size: 13.33px;
+}
+
+.bb tbody .bb-lab,
+.bb .bb-wait-h {
+  font-size: 13.33px;
+  font-weight: 700;
+}
+
+.bb-tk b,
+.bb-w b {
+  font-weight: 700;
+}
+
+.bb-tk span,
+.bb-crane,
+.bb-along,
+.bb-w span,
+.bb thead .bb-dh {
+  font-weight: 400;
+}
+
+.bb tbody .bb-c1 small,
+.bb .bb-mbuoy small,
+.bb .bb-dh small,
+.bb-sec-label em {
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* Buoy prices: the tab's own rules, under its table (the page subtitle stays one line on every tab). */
+.bp-note {
+  margin: 10px 0 0;
+  max-width: 920px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #6b7280;
+}
+
+.by-legend .blegend-grid.one {
+  grid-template-columns: 1fr;
+}
+
+/* Tabs of the buoy tables on a phone: a segmented control (the Towage | Buoys look), all tabs in view. */
+.by-seg {
+  display: flex;
+  gap: 3px;
+  width: 100%;
+  padding: 3px;
+  border-radius: 10px;
+  background: #e4e5e7;
+}
+
+.by-seg button {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 5px 4px 4px;
+  border-radius: 8px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.by-seg b,
+.by-seg small {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.by-seg b {
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.by-seg small {
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.by-seg button.on {
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14);
+  color: var(--text);
+}
+
+.by-seg button.on small {
+  color: var(--blue-2);
+  font-weight: 600;
+}
+
+/* Tabbed setup screens on a phone: each tab has its own description, 1 or 2 lines at 390px. Two lines are
+   always reserved so the tabs and the table stay put when switching tabs. */
+body:not(.desk) .dt-page:has(.by-seg) .dt-head .section-sub {
+  min-height: 40px;
+}
+
+/* Count-only tabs (setup screens): label and count on one line — "Units 4". */
+.by-seg.one button {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 6px;
+}
+
+.by-seg.one b {
+  min-width: 0;
+}
+
+.by-seg.one small {
+  flex: none;
+  overflow: visible;
+}
+
+body:not(.desk) .dt-tools:has(.by-seg) {
+  overflow: visible;
+}

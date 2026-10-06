@@ -849,7 +849,13 @@
   var clientAccounts = function () { return api.state.users.filter(function (u) { return u.role === 'CLIENT'; }); };
   var linkedEmails = function () { return [].concat.apply([], P.customers.map(function (c) { return c.accounts || []; })); };
 
+  // Other modules add to these tables (buoys-setup.js: the cargo-owner tabs on Customers, the PDA / FDA email
+  // columns on Agents): api.tableExtra[route] = { tools() -> html, cols() -> [col], actions(row, i) -> html }.
+  api.tableExtra = api.tableExtra || {};
+  var extra = function (route) { return api.tableExtra[route] || {}; };
+
   api.views['admin/customers'] = function () {
+    var ex = extra('admin/customers');
     var unlinked = clientAccounts().filter(function (u) { return linkedEmails().indexOf(u.email) < 0; });
     var table = api.dataTable({
       source: P.customers, noun: 'customer', placeholder: 'Search customer, short name, tax code…',
@@ -866,7 +872,7 @@
         { key: 'defaultAgent', label: 'Default agent', cell: function (c) { return api.dash((byId(P.agents, defaultAgent(c)) || {}).name); } },
         { key: 'accounts', label: 'Client accounts', cell: function (c) { return tagList(c.accounts || []); } }
       ],
-      tools: canWork() ? '' : viewOnly('customers are edited by ADMIN and accountants'),
+      tools: (ex.tools ? ex.tools() : '') + (canWork() ? '' : viewOnly('customers are edited by ADMIN and accountants')),
       actions: canWork() ? function (c, i) { return api.btn('', 'data-action="cu-edit" data-arg="' + i + '"', 'Edit'); } : null
     });
     return api.deskPage('Customers', 'Who is invoiced. A linked client account gets its customer and default agent filled in on every ticket.', table +
@@ -931,17 +937,18 @@
   };
 
   api.views['admin/agents'] = function () {
-    return api.deskPage('Agents', 'Who orders. An agent can work for several customers, and a customer can have several agents.', api.dataTable({
+    var ex = extra('admin/agents');
+    return api.deskPage('Agents', 'Who orders. An agent can work for several customers, and a customer can have several agents.' + (ex.sub || ''), api.dataTable({
       source: P.agents, noun: 'agent', placeholder: 'Search agent or contact…',
       list: P.agents.filter(function (a) { return api.matches(a.name + ' ' + a.contact); }),
-      add: canWork() ? { action: 'ag-new', label: 'Add agent' } : null, tools: canWork() ? '' : viewOnly('agents are edited by ADMIN and accountants'),
+      add: canWork() ? { action: 'ag-new', label: 'Add agent' } : null, tools: (ex.tools ? ex.tools() : '') + (canWork() ? '' : viewOnly('agents are edited by ADMIN and accountants')),
       cols: [
         { key: 'name', label: 'Agent', sort: 'text', cell: function (a) { return '<b>' + esc(a.name) + '</b>'; } },
         { key: 'contact', label: 'Contact', sort: 'text' },
         { key: 'phone', label: 'Phone', sort: 'text' },
         { key: 'customers', label: 'Customers', cell: function (a) { return tagList(P.customers.filter(function (c) { return (c.agents || []).indexOf(a.id) >= 0; }).map(function (c) { return c.short; })); } }
-      ],
-      actions: !canWork() ? null : function (a, i) { return api.btn('', 'data-action="ag-edit" data-arg="' + i + '"', 'Edit'); }
+      ].concat(ex.cols ? ex.cols() : []),
+      actions: !canWork() ? null : function (a, i) { return api.btn('', 'data-action="ag-edit" data-arg="' + i + '"', 'Edit') + (ex.actions ? ex.actions(a, i) : ''); }
     }));
   };
 
@@ -1070,21 +1077,29 @@
     var p = isNew ? { currency: 'VND', service: 'mano_in', from: '' } : P.priceRows[index];
     var show = function (n) { return n == null ? '' : n; };
     var ports = Object.keys(D.portLocations);
+    // The date picker works in yyyy-mm-dd; price rows keep dd/mm/yyyy.
+    var iso = dkey(p.from);
     api.editDialog({
-      title: isNew ? 'New price' : 'Edit price', text: 'Ranges include both ends. Leave a box empty for “any”. You can type 80k for 80,000.',
-      values: Object.assign({}, p, { customer: p.customer || '', area: p.area || '', port: p.port || '', dwtMin: show(p.dwtMin), dwtMax: show(p.dwtMax), loaMin: show(p.loaMin), loaMax: show(p.loaMax) }),
+      title: isNew ? 'New price' : 'Edit price', cls: 'ed-tidy pr-dlg',
+      values: Object.assign({}, p, { customer: p.customer || '', area: p.area || '', port: p.port || '', dwtMin: show(p.dwtMin), dwtMax: show(p.dwtMax), loaMin: show(p.loaMin), loaMax: show(p.loaMax),
+        price: p.price == null ? '' : Number(p.price).toLocaleString('en-US', { maximumFractionDigits: 3 }), from: iso ? iso.slice(0, 4) + '-' + iso.slice(4, 6) + '-' + iso.slice(6) : '' }),
       fields: [
-        { name: 'customer', label: 'Customer', type: 'one', options: [{ value: '', label: 'Any customer', sub: 'Blank: the row applies to every customer' }].concat(P.customers.map(custItem)) },
+        { type: 'section', label: 'Applies to', hint: 'Blank = any' },
+        { name: 'customer', label: 'Customer', type: 'pick', options: [{ value: '', label: 'Any customer', sub: 'The row applies to every customer' }].concat(P.customers.map(custItem)) },
         { name: 'service', label: 'Service', type: 'select', options: D.services.map(function (s) { return { value: s.code, label: s.name }; }) },
         { name: 'area', label: 'Area', type: 'select', half: true, options: [{ value: '', label: 'Any area' }].concat(D.boardLocations.map(function (a) { return { value: a, label: a }; })) },
         { name: 'port', label: 'Port', type: 'select', half: true, options: [{ value: '', label: 'Any port' }].concat(ports.map(function (x) { return { value: x, label: x + ' · ' + D.portLocations[x] }; })) },
-        { name: 'dwt', label: 'DWT range', type: 'range', unit: 'DWT' },
-        { name: 'loa', label: 'LOA range (m)', type: 'range', unit: 'LOA' },
-        { name: 'price', label: 'Price per tugboat', req: true, half: true },
-        { name: 'currency', label: 'Currency', type: 'select', half: true, options: P.currencies.map(function (c) { return { value: c.code, label: c.code + ' (' + c.decimals + ' decimals)' }; }) },
-        { name: 'from', label: 'Effective from', req: true, half: true, placeholder: 'dd/mm/yyyy', hint: 'No end date: a later row with the same conditions replaces it from its own date.' }
+        { type: 'section', label: 'Vessel size', hint: 'Both ends included' },
+        { name: 'dwt', label: 'DWT', type: 'range', sep: '–', cls: 'ed-inline' },
+        { name: 'loa', label: 'LOA (m)', type: 'range', sep: '–', cls: 'ed-inline' },
+        { type: 'section', label: 'Price' },
+        { name: 'price', label: 'Per tugboat', req: true, cls: 'ed-grow', placeholder: '18,500,000', hint: 'Type 80k for 80,000' },
+        { name: 'currency', label: 'Currency', type: 'select', cls: 'ed-cur', options: P.currencies.map(function (c) { return { value: c.code, label: c.code }; }) },
+        { name: 'from', label: 'Effective from', type: 'date', req: true, hint: 'No end date: a later row with the same conditions replaces it from its own date.' }
       ],
       onSave: function (v, force) {
+        var ymd = /^(\d{4})-(\d\d)-(\d\d)$/.exec(v.from);
+        v.from = ymd ? ymd[3] + '/' + ymd[2] + '/' + ymd[1] : '';
         var n = {};
         var bad = ['dwtMin', 'dwtMax', 'loaMin', 'loaMax', 'price'].filter(function (k) { n[k] = parseNum(v[k]); return n[k] === undefined; });
         if (bad.length) return { error: 'Not a number: ' + bad.join(', ') + '. Use digits, or 80k / 1.5m.' };

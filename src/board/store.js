@@ -1,8 +1,8 @@
 import D from '../data';
 import { normalizeBoard } from './model.jsx';
 
-// Board rows live in the app's sessionStorage. v10: bumped so the board moved to 01/10/2026 reaches open tabs.
-const BOARD_KEY = 'hvs_board_v10';
+// Board rows live in the app's sessionStorage. v11: bumped for the extra 02–03/10 demo tickets (05/10).
+const BOARD_KEY = 'hvs_board_v11';
 // Per-device display config: { columns, filters }.
 const CFG_KEY = 'hvs.planBoard.display.v1';
 

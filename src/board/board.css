@@ -211,13 +211,133 @@
   text-overflow: clip;
 }
 
+/* Row ⋮: a full-cell hit area with a visible chip that lights up on hover and stays lit while its menu is open. */
 .pb-act {
-  width: 32px;
+  width: 100%;
   height: 32px;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #4b5563;
+  cursor: pointer;
+}
+
+.pb-act svg {
+  box-sizing: content-box;
+  width: 4px;
+  height: 14px;
+  padding: 3px 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.pb-act:hover svg,
+.pb-act:focus-visible svg {
+  background: #fff;
+  border-color: #c7ccd4;
+  color: #111827;
+}
+
+.pb-act:focus-visible {
+  outline: none;
+}
+
+.pb-act.ant-dropdown-open svg {
+  background: #1f6feb;
+  border-color: #1f6feb;
+  color: #fff;
+}
+
+/* The ⋮ menu: ticket header, icon rows with a grey hint, Add service set apart in blue. */
+.pb-act-menu .ant-dropdown-menu {
+  min-width: 236px;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.pb-act-menu .ant-dropdown-menu-item-group-title {
+  padding: 6px 10px 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #eef0f3;
+}
+
+.pb-am-head {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pb-am-head b {
+  color: #111827;
+  font-size: 13px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pb-am-head span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: #6b7280;
+  font-size: 12px;
+}
+
+.pb-am-head i {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  padding: 0 6px;
+  border: 1px solid;
+  border-radius: 3px;
+}
+
+.pb-act-menu .ant-dropdown-menu-item-group-list {
+  margin: 0;
+}
+
+.pb-act-menu .ant-dropdown-menu-item {
+  padding: 7px 10px !important;
+  border-radius: 6px;
+}
+
+.pb-act-menu .ant-dropdown-menu-item .ant-dropdown-menu-item-icon {
+  font-size: 15px;
+  margin-inline-end: 10px;
+  color: #6b7280;
+}
+
+.pb-am-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pb-am-item small {
+  color: #9ca3af;
+  font-size: 11.5px;
+}
+
+.pb-act-menu .ant-dropdown-menu-item-disabled .pb-am-item small,
+.pb-act-menu .ant-dropdown-menu-item-disabled .ant-dropdown-menu-item-icon {
+  color: inherit;
+}
+
+.pb-act-menu .pb-am-add,
+.pb-act-menu .pb-am-add .ant-dropdown-menu-item-icon {
+  color: #1f6feb;
+  font-weight: 600;
+}
+
+.pb-act-menu .pb-am-add:hover {
+  background: #eef4ff !important;
 }
 
 /* ---------- section and empty rows (.b-sec, .b-empty) ---------- */
@@ -1746,4 +1866,431 @@ body.desk .blegend-marks {
   flex: none;
   display: flex;
   gap: 6px;
+}
+
+
+/* ---------- spreadsheet skin (user, 05/10: the board looks like the client's planning sheet) ----------
+   Values from the sheet itself (dashboard_table_view, exported .xlsx), lines and fills softened: Calibri 10pt bold, centred;
+   40px rows (square half-hour cells); #f3f3f3 header and section bands, #d9d9d9 day title, cyan section label;
+   solid 1px black column lines, 1px dotted row lines, dotted lines round every timeline cell; 2px solid
+   under the header, over each section row, between the info columns and the timeline, and at midnight.
+   Tug bars fill their cells edge to edge in the catalogue colour with black 10pt regular text. */
+
+/* Ticket rows are as tall as a half-hour cell is wide (C in PlanBoardTable), so timeline cells are square (user, 06/10). */
+.pb-wrap .pb-table {
+  --pb-h: 40px;
+  /* Lines softened from the sheet's black (user, 05/10: the table read too dark). */
+  --xl: #595959; /* 2px dividers */
+  --xl-line: #8c8c8c; /* 1px column lines */
+  --xl-dot: #a6a6a6; /* dotted row and half-hour lines */
+  --xl-cyan: #99ffff;
+  --xl-in: #ffff66;
+  --xl-out: #bee396;
+  --xl-font: Calibri, Carlito, Arial, Helvetica, sans-serif;
+}
+
+.pb-wrap .pb-table.compact {
+  --pb-h: 36px;
+}
+
+.pb-wrap .pb-table .ant-table {
+  font-family: var(--xl-font);
+  font-size: 13.33px; /* 10pt */
+  font-weight: 700;
+  color: #000;
+}
+
+/* No outer frame round the table (user, 05/10: it looked heavy); only the inner lines. */
+.pb-wrap .pb-table .ant-table-container {
+  border-left: 0;
+}
+
+/* ---- header ---- */
+.pb-wrap .pb-table .ant-table-thead > tr > th {
+  height: 21px;
+  padding: 0 2px;
+  border-top: 0;
+  border-right: 1px solid var(--xl-line);
+  border-bottom: 1px solid var(--xl-line);
+  background: #f3f3f3 !important;
+  font-size: 13.33px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: center;
+  color: #000;
+}
+
+.pb-wrap .pb-table .ant-table-thead > tr:first-child > th {
+  border-top: 0;
+}
+
+.pb-wrap .pb-table .ant-table-thead > tr:last-child > th,
+.pb-wrap .pb-table .ant-table-thead > tr > th[rowspan] {
+  border-bottom: 2px solid var(--xl);
+}
+
+.pb-wrap .pb-table .ant-table-thead > tr > th.pb-g-pob,
+.pb-wrap .pb-table .ant-table-thead > tr > th.pb-c-pobIn {
+  background: var(--xl-in) !important;
+  color: #000;
+}
+
+.pb-wrap .pb-table .ant-table-thead > tr > th.pb-c-pobOut {
+  background: var(--xl-out) !important;
+  color: #000;
+}
+
+/* The ⋮ column closes the info block: the sheet's 2px line before the timeline. */
+.pb-wrap .pb-table .ant-table-thead > tr > th.pb-c-actions,
+.pb-wrap .pb-table .ant-table-tbody > tr > td.pb-c-actions {
+  border-right: 2px solid var(--xl);
+}
+
+/* The timeline cells carry no padding, so the hours, the grid and the bars share one origin. */
+.pb-wrap .pb-table .ant-table-thead > tr > th.pb-c-timeline,
+.pb-wrap .pb-table .ant-table-tbody > tr > td.pb-c-timeline {
+  padding: 0;
+  border-right: 0;
+}
+
+.pb-wrap .bh-time {
+  font-family: var(--xl-font);
+}
+
+/* Day title: grey band, centred over its 24 hours, as "KẾ HOẠCH TÀU LAI TỪ 0H00 ĐẾN 24H00 NGÀY …". */
+.pb-wrap .bh-days {
+  height: 21px;
+  background: #d9d9d9;
+  border-bottom: 1px solid var(--xl-line);
+}
+
+.pb-wrap .bh-days span {
+  border-right: 2px solid var(--xl);
+  font-size: 13.33px;
+  line-height: 20px;
+  text-align: center;
+  color: #000;
+}
+
+.pb-wrap .pb-table .bh-days b {
+  position: static;
+  padding: 0;
+}
+
+.pb-wrap .bh-hours {
+  height: 21px;
+}
+
+.pb-wrap .bh-hours span {
+  border-right: 1px dotted var(--xl-dot);
+  font-size: 13.33px;
+  font-weight: 400;
+  line-height: 20px;
+  text-align: center;
+  color: #000;
+}
+
+.pb-wrap .bh-hours span.dayend {
+  border-right: 2px solid var(--xl);
+}
+
+/* ---- cells ---- */
+.pb-wrap .pb-table .ant-table-tbody > tr > td {
+  padding: 0 2px;
+  border-right: 1px solid var(--xl-line);
+  border-bottom: 1px dotted var(--xl-dot);
+  line-height: 1.1;
+  text-align: center;
+  color: #000;
+}
+
+.pb-wrap .pb-table tr.pb-row > td.pb-c-port {
+  padding-top: calc((var(--pb-h) - 15px) / 2);
+  text-align: center;
+  font-weight: 700;
+  color: #000;
+}
+
+.pb-wrap .pb-table tr.pb-row > td.pb-c-port:not([rowspan]),
+.pb-wrap .pb-table tr.pb-row > td.pb-c-port[rowspan='1'] {
+  padding-top: 0;
+}
+
+.pb-wrap .pb-table tr.pb-row > td.pb-c-status {
+  text-align: center;
+}
+
+.pb-wrap .pb-table tr.pb-row > td.pb-c-vessel {
+  box-shadow: 2px 0 0 -1px var(--xl-line);
+}
+
+/* Status: plain text in its colour (▾ opens the menu); a cancel request keeps an amber frame. */
+.pb-wrap .pb-table .spill {
+  height: auto;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none;
+  font: inherit;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.pb-wrap .pb-table .spill.creq {
+  padding: 0 3px;
+  border: 1px solid #f59e0b !important;
+  background: #fff2cc !important;
+  box-shadow: none;
+}
+
+.pb-wrap .pb-table .ant-table-tbody > tr > td.pb-c-note {
+  color: #ff0000;
+}
+
+.pb-wrap .pb-table td.pb-c-note .pb-note {
+  justify-content: center;
+}
+
+.pb-wrap .pb-edited {
+  color: #ff0000;
+}
+
+.pb-wrap .pb-table td .signed-t {
+  padding: 0 2px;
+  border-width: 1px;
+}
+
+.pb-wrap .pb-twin-tag {
+  line-height: 15px;
+}
+
+body.desk .pb-wrap .pb-act {
+  height: calc(var(--pb-h) - 1px);
+}
+
+/* ---- timeline: band colour under the hours, dotted line round every half-hour cell, solid at midnight ---- */
+.pb-wrap .pb-table .ant-table-tbody > tr > td.pb-c-timeline {
+  border-bottom: 1px dotted var(--xl-dot);
+}
+
+.pb-wrap .pb-table td.pb-c-timeline .bt {
+  border-bottom: 0;
+  background-color: transparent;
+  background-image: linear-gradient(to right, transparent calc(var(--c) * 48 - 2px), var(--xl) calc(var(--c) * 48 - 2px), var(--xl) calc(var(--c) * 48), transparent calc(var(--c) * 48));
+  background-size: calc(var(--c) * 96) 100%;
+  background-position: 0 0;
+}
+
+.pb-wrap .pb-table td.pb-c-timeline .bt::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: repeating-linear-gradient(to right, transparent 0 calc(var(--c) - 1px), var(--xl-dot) calc(var(--c) - 1px) var(--c));
+  -webkit-mask: repeating-linear-gradient(to bottom, #000 0 1px, transparent 1px 2px);
+  mask: repeating-linear-gradient(to bottom, #000 0 1px, transparent 1px 2px);
+  pointer-events: none;
+}
+
+/* Tug bars are merged cells: edge to edge, full height, dotted cell border, black regular text. */
+.pb-wrap .bjob {
+  top: 0;
+  bottom: 1px;
+  padding: 0 2px;
+  border: 1px dotted var(--xl-dot) !important;
+  border-radius: 0;
+  font-family: var(--xl-font);
+  font-size: 13.33px;
+  font-weight: 400;
+  color: #000 !important;
+}
+
+.pb-wrap .bjob::before {
+  inset: 0;
+}
+
+.pb-wrap .bjob.escort {
+  font-size: 13.33px;
+}
+
+.pb-wrap .bband,
+.pb-wrap .bship,
+.pb-wrap .bt .bsug {
+  top: 0;
+  bottom: 1px;
+  border-radius: 0;
+}
+
+.pb-wrap .bband {
+  font-family: var(--xl-font);
+  font-size: 13.33px;
+  font-weight: 400;
+  color: #000 !important;
+}
+
+.pb-wrap .bph {
+  top: calc(50% - 9px);
+  height: 18px;
+  border-radius: 0;
+  line-height: 16px;
+  color: #000;
+}
+
+/* ---- section rows: one band across the board; the cyan label (PORT + STATUS wide) stays at the left edge.
+   No repeated titles or hours: the header is always on screen (user, 05/10). ---- */
+.pb-wrap .pb-table .ant-table-tbody > tr.pb-sec > td {
+  height: 21px;
+  padding: 0;
+  border-top: 2px solid var(--xl);
+  border-right: 0;
+  border-bottom: 1px solid var(--xl-line);
+  background: #f3f3f3 !important;
+  font-size: 13.33px;
+  text-align: left;
+  overflow: visible;
+}
+
+/* Left-aligned and at least PORT + STATUS wide; it grows with a long label rather than clipping it. */
+.pb-wrap .pb-table tr.pb-sec .b-sec-label {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  justify-content: flex-start;
+  box-sizing: border-box;
+  width: max-content;
+  height: 19px;
+  padding: 0 10px 0 8px;
+  white-space: nowrap;
+  border-right: 1px solid var(--xl-line);
+  background: var(--xl-cyan);
+  font-size: 13.33px;
+  color: #000;
+}
+
+.pb-wrap .pb-table tr.pb-sec .b-sec-label em {
+  font-size: 12px;
+  font-weight: 400;
+  color: #000;
+}
+
+.pb-wrap .pb-table .ant-table-tbody > tr.pb-empty > td {
+  border-bottom: 1px dotted var(--xl-dot);
+  text-align: left;
+  font-weight: 400;
+  color: #000;
+}
+
+/* ---- legend: square swatches with a black cell border, black labels, as the sheet's coloured cells ---- */
+.bbar button.blegend {
+  font-family: var(--xl-font, Calibri, Carlito, Arial, sans-serif);
+  font-size: 12px;
+  color: #000;
+}
+
+.bsw i,
+.blegend-grid i {
+  width: 12px;
+  height: 12px;
+  border: 1px solid #000 !important;
+  border-radius: 0;
+}
+
+.blegend-help {
+  color: #000;
+}
+
+/* Once VESSEL is frozen (.stuck), the NAME header carries its own "VESSEL" title above it, so the group row never shows other
+   titles sliding under the frozen column. */
+.pb-wrap .pb-table .ant-table-thead > tr > th.pb-c-vessel {
+  overflow: visible;
+}
+
+.pb-wrap.stuck .pb-table .ant-table-thead > tr > th.pb-c-vessel::after {
+  content: 'VESSEL';
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  bottom: 100%;
+  height: 22px;
+  border-top: 0;
+  border-right: 1px solid var(--xl-line);
+  border-bottom: 1px solid var(--xl-line);
+  background: #f3f3f3;
+  line-height: 19px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+/* ---------- dropdown & calendar popups: the app's popup card (phone) ----------
+   Same look as the vanilla select / date popups (assets/hvs/pricing.css .fx-sheet) and the dialogs:
+   14px corners, the dialog shadow, the picked item on light blue in blue, round day cells. */
+body:not(.desk) .ant-select-dropdown,
+body:not(.desk) .ant-picker-dropdown .ant-picker-panel-container {
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+body:not(.desk) .ant-select-dropdown {
+  padding: 6px;
+}
+
+body:not(.desk) .ant-select-dropdown .ant-select-item {
+  min-height: 38px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+body:not(.desk) .ant-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background: #eff4ff;
+  color: var(--blue);
+  font-weight: 700;
+}
+
+body:not(.desk) .ant-picker-dropdown .ant-picker-header {
+  padding: 4px 8px;
+}
+
+body:not(.desk) .ant-picker-dropdown .ant-picker-header-view {
+  font-weight: 700;
+}
+
+body:not(.desk) .ant-picker-dropdown .ant-picker-content th {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #9ca3af;
+}
+
+body:not(.desk) .ant-picker-dropdown .ant-picker-cell .ant-picker-cell-inner,
+body:not(.desk) .ant-picker-dropdown .ant-picker-cell-today .ant-picker-cell-inner::before {
+  border-radius: 50%;
+}
+
+body:not(.desk) .ant-picker-dropdown .ant-picker-cell-today .ant-picker-cell-inner {
+  color: var(--blue);
+  font-weight: 700;
+}
+
+body:not(.desk) .ant-picker-dropdown .ant-picker-cell-selected .ant-picker-cell-inner {
+  color: #fff;
+}
+
+body:not(.desk) .ant-picker-dropdown .ant-picker-time-panel-cell-selected .ant-picker-time-panel-cell-inner {
+  background: #eff4ff;
+  color: var(--blue);
+  font-weight: 700;
+}
+
+body:not(.desk) .ant-picker-dropdown .ant-picker-time-panel-cell-inner {
+  border-radius: 6px;
+}
+
+body:not(.desk) .ant-picker-dropdown .ant-picker-ok .ant-btn {
+  height: 30px;
+  padding: 0 16px;
+  border-radius: 15px;
 }

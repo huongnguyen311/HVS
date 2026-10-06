@@ -19,13 +19,14 @@ window.HVS_DATA = {
     NOT_VALID: { label: 'Not Valid', fg: '#dc2626', bg: '#fee2e2', bd: '#fca5a5' },
     CANCELLED: { label: 'Cancelled', fg: '#6b7280', bg: '#f3f4f6', bd: '#d1d5db' }
   },
+  // Band fills: the client's planning-sheet palette, 40% lighter (user, 05/10: the table read too dark).
   sectionColors: {
-    'NEW TICKET / PENDING': '#edd8e6',
-    'Cai Mep - Thi Vai': '#e0e7ff',
-    'Vung Tau': '#dcfce7',
-    'Dong Nai': '#ffedd5',
-    'Sai Gon': '#dbeafe',
-    'Unassigned location': '#fee2e2'
+    'NEW TICKET / PENDING': '#f4e8f0',
+    'Cai Mep - Thi Vai': '#e2eef8',
+    'Vung Tau': '#fdefe1',
+    'Dong Nai': '#e8f2e5',
+    'Sai Gon': '#fff7e0',
+    'Unassigned location': '#f8e0e0'
   },
 
   // Info columns in board order (as on hvs-prototype.vercel.app/tugboat-plan-board);
@@ -42,7 +43,7 @@ window.HVS_DATA = {
     { key: 'pobIn', label: 'POB IN', name: 'POB in', width: 104 },
     { key: 'pobOut', label: 'POB OUT', name: 'POB out', width: 104 },
     { key: 'note', label: 'NOTE', name: 'NOTE', width: 180 },
-    { key: 'actions', label: '', width: 44, required: true }
+    { key: 'actions', label: 'ACTIONS', name: 'Ticket actions, notes and services', width: 72, required: true }
   ],
   // Board display presets (D1): All / Compact / Minimum; any other column list is "Custom".
   columnPresets: {
@@ -70,11 +71,11 @@ window.HVS_DATA = {
     { code: 'mano_in', short: 'In', name: 'Mano (arrival)', color: '#ffff00', text: '#4a4000', border: '#d4c500', render: 'block', anchor: 'in', at: 'in', mins: 90, grouping: 'one_block_all', width: 'per_boat', orderIn: 10, orderOut: null, stack: 30, escort: true, multi: false, fields: ['Shipping time (min)', 'Escort rule', 'Escort boats'], hint: 'Starts at POB in', desc: 'Tugboat work at POB in. The board’s default arrival job.' },
     { code: 'mano_out', short: 'Out', name: 'Mano (departure)', color: '#92d050', text: '#1f3d00', border: '#6ba336', render: 'block', anchor: 'out', at: 'out', mins: 90, grouping: 'one_block_all', width: 'per_boat', orderIn: null, orderOut: 10, stack: 30, escort: true, multi: false, fields: ['Escort rule', 'Escort boats'], hint: 'Starts at POB out', desc: 'Tugboat work at POB out. No shipping time, nobody boards on the way out.' },
     { code: 'shifting', short: 'Shifting', name: 'Shifting', color: '#00ffff', text: '#00494a', border: '#00c4c6', render: 'block', anchor: 'none', at: 'after', mins: 90, grouping: 'one_block_all', width: 'per_boat', orderIn: null, orderOut: null, stack: 40, escort: false, multi: true, fields: [], hint: 'Right after Mano (arrival)', desc: 'Moving the vessel between berths. Placed right after Mano (arrival), as long as a mano; with no POB in, it ends at POB out.' },
-    { code: 'standby', short: 'Standby', name: 'Standby', color: '#fde68a', text: '#5b4300', border: '#e0b84a', render: 'block', anchor: 'none', at: 'after', mins: 180, grouping: 'one_block_all', width: 'by_time', orderIn: null, orderOut: null, stack: 20, escort: false, multi: true, fields: [], hint: 'Right after Mano (arrival)', desc: 'Held ready right after Mano (arrival); with no POB in, it ends at POB out. Sits after mano, before mooring.' },
+    { code: 'standby', short: 'Standby', name: 'Standby', color: '#ff9900', text: '#000000', border: '#c27400', render: 'block', anchor: 'none', at: 'after', mins: 180, grouping: 'one_block_all', width: 'by_time', orderIn: null, orderOut: null, stack: 20, escort: false, multi: true, fields: [], hint: 'Right after Mano (arrival)', desc: 'Held ready right after Mano (arrival); with no POB in, it ends at POB out. Sits after mano, before mooring.' },
     { code: 'special', short: 'Special', name: 'Special job', color: '#f0abfc', text: '#701a75', border: '#c026d3', render: 'block', anchor: 'in_out', at: 'pob', mins: 90, grouping: 'one_block_all', width: 'per_boat', orderIn: null, orderOut: null, stack: 40, escort: false, multi: true, fields: [], hint: 'Starts at POB in, else POB out', desc: 'Anything outside the catalogue. Starts at POB in, or at POB out when there is no POB in.' },
-    { code: 'salvage', short: 'Salvage', name: 'Salvage', color: '#fecaca', text: '#7f1d1d', border: '#f87171', render: 'background', anchor: 'both', at: 'span', grouping: 'one_block_all', width: 'by_time', orderIn: null, orderOut: null, stack: 2, escort: false, multi: false, fields: [], hint: 'Spans POB in → POB out', desc: 'Runs the whole POB in → POB out span, behind the row’s other work.' },
-    { code: 'standby_duty', short: 'Duty', name: 'Standby on duty', color: '#e3d7f2', text: '#2c1450', border: '#8b63c9', render: 'background', anchor: 'both', at: 'span', grouping: 'one_block_all', width: 'by_time', orderIn: null, orderOut: null, stack: 1, escort: false, multi: false, fields: [], hint: 'Spans POB in → POB out', desc: 'Continuous duty across the POB window. The tug is occupied, not tasked.' },
-    { code: 'mooring', short: 'Mooring', name: 'Mooring', color: '#cbd5e1', text: '#1e293b', border: '#94a3b8', render: 'end_pinned', anchor: 'none', at: 'end', grouping: 'one_block_all', width: 'per_boat', orderIn: null, orderOut: null, stack: 10, escort: false, multi: false, fields: [], hint: 'No POB time, pinned to the row end', desc: 'Takes no time from POB in or POB out. Renders at the end of the row.' }
+    { code: 'salvage', short: 'Salvage', name: 'Salvage', color: '#f4cccc', text: '#7f1d1d', border: '#e06666', render: 'background', anchor: 'both', at: 'span', grouping: 'one_block_all', width: 'by_time', orderIn: null, orderOut: null, stack: 2, escort: false, multi: false, fields: [], hint: 'Spans POB in → POB out', desc: 'Runs the whole POB in → POB out span, behind the row’s other work.' },
+    { code: 'standby_duty', short: 'Duty', name: 'Standby on duty', color: '#d9d2e9', text: '#2c1450', border: '#8e7cc3', render: 'background', anchor: 'both', at: 'span', grouping: 'one_block_all', width: 'by_time', orderIn: null, orderOut: null, stack: 1, escort: false, multi: false, fields: [], hint: 'Spans POB in → POB out', desc: 'Continuous duty across the POB window. The tug is occupied, not tasked.' },
+    { code: 'mooring', short: 'Mooring', name: 'Mooring', color: '#b7b7b7', text: '#000000', border: '#808080', render: 'end_pinned', anchor: 'none', at: 'end', grouping: 'one_block_all', width: 'per_boat', orderIn: null, orderOut: null, stack: 10, escort: false, multi: false, fields: [], hint: 'No POB time, pinned to the row end', desc: 'Takes no time from POB in or POB out. Renders at the end of the row.' }
   ],
   // Fixture jobs carry a drawing kind instead of a service code; this maps them onto the catalogue.
   kindService: { pobin: 'mano_in', pobout: 'mano_out', special: 'special', shift: 'standby_duty' },
@@ -105,7 +106,7 @@ window.HVS_DATA = {
     { nick: 'DVHH', agency: 'MARITIME SERVICES' },
     { nick: 'PAMAR', agency: 'PAMAR SHIPPING' }
   ],
-  boardVessels: ['CMA CGM JULES VERNE', 'CSCL LONG BEACH', 'SHUN LONG', 'LETO', 'MSC NEW YORK', 'MSC TRIESTE', 'OOCL VIOLET', 'MAERSK BOSTON', 'ONE IBIS', 'ONE FREEDOM', 'APOLLO DIGNITY', 'PORT OSHIMA', 'ZHENG RONG', 'GOLDEN HOPE', 'DAT VENUS', 'ORIENTAL BREEZE'],
+  boardVessels: ['CMA CGM JULES VERNE', 'CSCL LONG BEACH', 'SHUN LONG', 'LETO', 'MSC NEW YORK', 'MSC TRIESTE', 'OOCL VIOLET', 'MAERSK BOSTON', 'ONE IBIS', 'ONE FREEDOM', 'APOLLO DIGNITY', 'PORT OSHIMA', 'ZHENG RONG', 'GOLDEN HOPE', 'DAT VENUS', 'ORIENTAL BREEZE', 'CMA CGM BAALBECK', 'CSCL STAR', 'CMA CGM TAGE', 'HAIAN ALFA', 'MSC REGINA', 'MSC AURORA', 'NORDBALTIC', 'MAERSK SELETAR', 'MAERSK KOLKATA', 'WAN HAI A03', 'BRIGHT TSUBAKI', 'NYK VIRGO', 'OOCL BRISBANE', 'SITC HAKATA', 'CHAMPION JULIE', 'VIET THUAN 215-03', 'WOOLLOOMOOLOO', 'STORM RIDER', 'RICH OCEAN', 'LILA', 'EMERALD QUSHAN', 'MSC JULIA', 'PAGNA', 'ASTRAL ACE', 'FORTY-TWO G', 'CL CIVILITY', 'ONE APUS', 'CMA CGM MEDEA', 'AMERICA GRAECA', 'PMS SEAGULL'],
 
   // ---------- Phase 4 · Pricing & ledger (mock) ----------
 
@@ -137,7 +138,11 @@ window.HVS_DATA = {
     { id: 'a2', name: 'Pacific Marine', contact: 'Mr. Sang', phone: '0975 382 001' },
     { id: 'a3', name: 'MSC Agency VN', contact: 'Mr. Long', phone: '0912 345 678' },
     { id: 'a4', name: 'Huong Giang Agency', contact: 'Mr. Hoang', phone: '0938 222 444' },
-    { id: 'a5', name: 'VTB Hai Van', contact: 'Duty officer', phone: '0254 3856 999' }
+    { id: 'a5', name: 'VTB Hai Van', contact: 'Duty officer', phone: '0254 3856 999' },
+    // Buoys agents (Cau phao); one agent list for towage and buoys.
+    { id: 'a6', name: 'SEAC', contact: 'Mr. Kiet', phone: '0903 724 229' },
+    { id: 'a7', name: 'Viet Thuan Shipping', contact: 'Ms. Ha', phone: '0913 556 210' },
+    { id: 'a8', name: 'Falcon Shipping', contact: 'Mr. Quang', phone: '0908 441 732' }
   ],
 
   // P2 · currencies (decimals per currency), daily exchange rates, and the price table. A blank condition
@@ -301,23 +306,24 @@ window.HVS_DATA = {
     { key: 'reports', label: 'Tickets & reports' },
     { key: 'board', label: 'Plan board' },
     { key: 'pricing', label: 'Pricing & ledger' },
+    { key: 'buoys', label: 'Buoys (Cau phao)' },
     { key: 'system', label: 'System' }
   ],
 
   admin: [
     { route: 'admin/users', group: 'people', icon: '👥', title: 'User Management', sub: 'Manage users, roles, and permissions', color: '#1463ff', tile: '#e3e9fb' },
     { route: 'admin/vessels', group: 'fleet', icon: '🚢', title: 'Vessel Management', sub: 'Manage vessel master data', color: '#16a34a', tile: '#dcfce7' },
-    { route: 'admin/ports', group: 'fleet', icon: '⚓', title: 'Port Management', sub: 'Manage port and berth data', color: '#ea580c', tile: '#ffedd5' },
+    { route: 'admin/ports', group: 'fleet', icon: '⚓', title: 'Port Management', sub: 'Ports, berths and buoy berths (owner, limits)', color: '#ea580c', tile: '#ffedd5' },
     { route: 'admin/user-requests', group: 'people', icon: '📝', title: 'User Requests', sub: 'Review and approve access requests', color: '#dc2626', tile: '#fee2e2' },
-    { route: 'admin/locations', group: 'fleet', icon: '📍', title: 'Location Management', sub: 'Manage tugboat home locations', color: '#9333ea', tile: '#f3e8ff' },
+    { route: 'admin/locations', group: 'fleet', icon: '📍', title: 'Location Management', sub: 'Tugboat home locations and buoy areas', color: '#9333ea', tile: '#f3e8ff' },
     { route: 'admin/contact-persons', group: 'people', icon: '👤', title: 'Contact Person Management', sub: 'Contact list clients see on the Contact us tab', color: '#0891b2', tile: '#cffafe' },
     { route: 'admin/stickers', group: 'reports', icon: '🖋️', title: 'Sticker Management', sub: 'Manage signatures and stamps for attachment editing', color: '#c2410c', tile: '#ffedd5' },
     { route: 'admin/tugboats', group: 'fleet', icon: '⛵', title: 'Tugboat Management', sub: 'Manage tugboat fleet and specifications', color: '#0e7490', tile: '#cffafe' },
     { route: 'admin/export-tickets', group: 'reports', icon: '📊', title: 'Export Tickets', sub: 'Generate ticket reports by date range', color: '#0f766e', tile: '#ccfbf1' },
     { route: 'admin/contact-stats', group: 'reports', icon: '📈', title: 'Contact Statistics', sub: 'Hotline / Zalo / WhatsApp click tracking', color: '#e11d48', tile: '#ffe4e6' },
     { route: 'admin/board-defaults', group: 'board', icon: '🗓️', title: 'Board Defaults', sub: 'Plan board columns: default, per role, user exceptions', color: '#4f46e5', tile: '#e0e7ff' },
-    { route: 'admin/customers', group: 'pricing', icon: '🏢', title: 'Customers', sub: 'Who is invoiced: tax code, VAT, agents, client accounts', color: '#0f766e', tile: '#ccfbf1' },
-    { route: 'admin/agents', group: 'pricing', icon: '🤝', title: 'Agents', sub: 'Who orders, and for which customers', color: '#7c3aed', tile: '#ede9fe' },
+    { route: 'admin/customers', group: 'pricing', icon: '🏢', title: 'Customers', sub: 'Who is invoiced; cargo owners (Buoys) and their colours', color: '#0f766e', tile: '#ccfbf1' },
+    { route: 'admin/agents', group: 'pricing', icon: '🤝', title: 'Agents', sub: 'Who orders, for which customers; PDA / FDA emails', color: '#7c3aed', tile: '#ede9fe' },
     { route: 'admin/tax-codes', group: 'pricing', icon: '🧾', title: 'Tax Codes', sub: 'One per customer; may be shared', color: '#b45309', tile: '#fef3c7' },
     { route: 'admin/price-table', group: 'pricing', icon: '💲', title: 'Price Table', sub: 'Customer × area/port × service × DWT × LOA', color: '#15803d', tile: '#dcfce7' },
     { route: 'admin/currencies', group: 'pricing', icon: '💱', title: 'Currencies & Rates', sub: 'Decimals per currency, daily exchange rates', color: '#0369a1', tile: '#e0f2fe' },
@@ -325,7 +331,13 @@ window.HVS_DATA = {
     { route: 'admin/discounts', group: 'pricing', icon: '🏷️', title: 'Discounts', sub: 'Tiers by moves per month, and what counts', color: '#be123c', tile: '#ffe4e6' },
     { route: 'ledger', group: 'pricing', icon: '📒', title: 'Ledger', sub: 'Priced lines, sub-tickets, export', color: '#334155', tile: '#e2e8f0' },
     { route: 'admin/settings', group: 'system', icon: '⚙️', title: 'System Settings', sub: 'Company, contact numbers, time zone, exports', color: '#475569', tile: '#e2e8f0' },
-    { route: 'admin/services', group: 'board', icon: '🧩', title: 'Service Types', sub: 'Services the board and ticket form render from', color: '#0369a1', tile: '#e0f2fe' }
+    { route: 'admin/services', group: 'board', icon: '🧩', title: 'Service Types', sub: 'Services the board and ticket form render from', color: '#0369a1', tile: '#e0f2fe' },
+    // Buoys (Cau phao), only what is not shared with towage: areas and buoys live on Locations and Ports, cargo
+    // owners on Customers, agents' PDA / FDA emails on Agents (SPEC-1). ADMIN edits master data, MOD views it; both edit prices.
+    { route: 'admin/buoy-cranes', group: 'buoys', icon: '🏗️', title: 'Buoy Cranes', sub: 'Named crane units and their types', color: '#b45309', tile: '#fef3c7' },
+    { route: 'admin/buoy-lists', group: 'buoys', icon: '🧾', title: 'Buoy Services & Cargo', sub: 'Service types (tariff charge) and cargo types', color: '#0369a1', tile: '#e0f2fe' },
+    { route: 'admin/buoy-companies', group: 'buoys', icon: '🏦', title: 'Buoy Companies & Banks', sub: 'Bank accounts on PDA / FDA, tug provider', color: '#334155', tile: '#e2e8f0' },
+    { route: 'admin/buoy-prices', group: 'buoys', icon: '💲', title: 'Buoy Prices', sub: 'Port services (barem), cargo handling, volume tiers', color: '#15803d', tile: '#dcfce7' }
   ],
 
   users: [
@@ -349,9 +361,9 @@ window.HVS_DATA = {
   // may open (profile and notifications are open to everyone). The server checks the same rules.
   roles: [
     { key: 'ADMIN', label: 'Admin', sub: 'Everything: accounts, master data, status override', home: 'tickets', routes: ['*'] },
-    { key: 'MOD', label: 'Mod', sub: 'Runs the plan board: confirm, assign, hold, POB, done', home: 'board', routes: ['tickets', 'board', 'history'] },
+    { key: 'MOD', label: 'Mod', sub: 'Runs the plan board; Buoys operator: tickets, buoy board, PDA / FDA, buoy prices', home: 'board', routes: ['tickets', 'board', 'history', 'buoys', 'buoy-board', 'buoy-docs', 'admin/locations', 'admin/ports', 'admin/customers', 'admin/agents', 'admin/buoy-cranes', 'admin/buoy-lists', 'admin/buoy-companies', 'admin/buoy-prices', 'admin/currencies', 'admin/fx-rates'] },
     { key: 'CAPTAIN', label: 'Captain', sub: 'Views the whole plan board, read only', home: 'board', routes: ['board'] },
-    { key: 'CLIENT', label: 'Client', sub: 'Own tickets: create, edit, request cancellation', home: 'tickets', routes: ['tickets', 'history'] },
+    { key: 'CLIENT', label: 'Client', sub: 'Own tickets: create, edit, request cancellation; buoy orders', home: 'tickets', routes: ['tickets', 'history', 'buoys'] },
     { key: 'HEAD_ACCOUNTANT', label: 'Head accountant', sub: 'Ledger and its tables (customers, agents, tax codes, prices, rates, discounts), AI review, export', home: 'ledger', routes: ['ledger', 'admin/customers', 'admin/agents', 'admin/tax-codes', 'admin/price-table', 'admin/currencies', 'admin/fx-rates', 'admin/discounts', 'admin/split-rules'] },
     { key: 'ACCOUNTANT', label: 'Accountant', sub: 'Ledger and its tables (customers, agents, tax codes, prices, rates, discounts), AI review, export', home: 'ledger', routes: ['ledger', 'admin/customers', 'admin/agents', 'admin/tax-codes', 'admin/price-table', 'admin/currencies', 'admin/fx-rates', 'admin/discounts', 'admin/split-rules'] },
     { key: 'SUPPORT_ACCOUNTANT', label: 'Support accountant', sub: 'Ledger and its tables, view only (prices included), no export', home: 'ledger', routes: ['ledger', 'admin/customers', 'admin/agents', 'admin/tax-codes', 'admin/price-table', 'admin/currencies', 'admin/fx-rates', 'admin/discounts', 'admin/split-rules'] }

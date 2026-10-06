@@ -21,7 +21,7 @@ export function TimelineHeader({ C, day }) {
       <div className="bh-days">
         {[day, day + 1].map((d) => (
           <span key={d} style={{ width: 48 * C }}>
-            <b>{dayLabel(d)}</b>
+            <b>TUG PLAN FROM 0H00 TO 24H00 · {dayLabel(d)}</b>
           </span>
         ))}
       </div>
@@ -137,7 +137,7 @@ export function TimelineCell({ row: r, C, from, dup, term, canRun, onJob, onAdd,
         return (
           x && (
             <Tip key={'s' + i} title="Shipping time" content={`${sp.mins || sp.span * 30} min`}>
-              <div className="bship" style={{ left: x.left * C + 1, width: x.width * C - 2 }} />
+              <div className="bship" style={{ left: x.left * C, width: x.width * C }} />
             </Tip>
           )
         );
@@ -174,7 +174,7 @@ export function TimelineCell({ row: r, C, from, dup, term, canRun, onJob, onAdd,
             <Tip key={ji + ':' + pi} title={jobLabel(j)} content={tip}>
               <div
                 className={'bjob ' + j.kind + (contl ? ' contl' : '') + (contr ? ' contr' : '') + (term ? ' dim' : '')}
-                style={{ left: x.left * C + 1, width: x.width * C - 2, background: k.bg, color: k.fg, borderColor: k.bd, zIndex: zOf(j), cursor: click ? 'pointer' : undefined }}
+                style={{ left: x.left * C, width: x.width * C, background: k.bg, color: k.fg, borderColor: k.bd, zIndex: zOf(j), cursor: click ? 'pointer' : undefined }}
                 onClick={click}
               >
                 {j.kind === 'shift' && <i className="duty" />}

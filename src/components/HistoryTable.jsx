@@ -7,7 +7,7 @@ import { loadAppRole, loadBoard, loadMods } from '../board/store';
 import { STATUS, isTerminal } from '../board/status';
 import { jobSvc, svc } from '../board/timeline';
 import Tip from './Tip';
-import { clientOf, locationOf, norm, pobMin, ticketId, toDayjs } from '../board/model.jsx';
+import { clientOf, fmtLoa, locationOf, norm, pobMin, ticketId, toDayjs } from '../board/model.jsx';
 import { Pob } from '../board/cells';
 import { Sheet, SheetHead } from './ClassicSheet';
 import TicketActionsModal from './TicketActionsModal';
@@ -210,7 +210,7 @@ export default function HistoryTable() {
     }),
     base('mod', { sorter: (a, b) => text(a.mod, b.mod), render: plain }),
     base('vessel', { sorter: (a, b) => text(a.vessel, b.vessel), render: plain }),
-    base('loa', { sorter: (a, b) => num(a.loa) - num(b.loa), render: plain }),
+    base('loa', { sorter: (a, b) => num(a.loa) - num(b.loa), render: (v) => plain(fmtLoa(v)) }),
     base('dwt', { sorter: (a, b) => num(a.dwt) - num(b.dwt), render: plain }),
     base('pobIn', { sorter: (a, b) => when(a) - when(b), defaultSortOrder: 'descend', render: (_, r) => <Pob row={r} field="pobIn" /> }),
     base('pobOut', { sorter: (a, b) => (pobMin(a.pobOut) ?? -1e9) - (pobMin(b.pobOut) ?? -1e9), render: (_, r) => <Pob row={r} field="pobOut" /> }),
@@ -293,7 +293,8 @@ export default function HistoryTable() {
           columns={columns}
           dataSource={rows}
           rowKey="key"
-          rowClassName={(r) => 'pb-row' + (r.status === 'CANCELLED' || r.status === 'NOT_VALID' ? ' pb-struck' : '')}
+          // No strike-through on cancelled / not-valid tickets here; the status column says so (user, 06/10).
+          rowClassName={() => 'pb-row'}
           onRow={(r) => ({ style: { '--pb-tint': r.tint }, onClick: () => setOpenNo(r.no) })}
           showSorterTooltip={false}
           locale={{ emptyText: <span className="hist-empty">No tickets match these filters</span> }}

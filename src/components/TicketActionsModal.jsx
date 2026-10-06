@@ -2,7 +2,7 @@ import dayjs from 'dayjs';
 import { useState } from 'react';
 import { Alert, AutoComplete, Button, Flex, Input, Modal, Popconfirm, Select, Space, Tag } from 'antd';
 import { CheckCircleOutlined, CopyOutlined, CloseCircleOutlined, ExclamationCircleFilled, FlagOutlined, PlusOutlined, SwapOutlined } from '@ant-design/icons';
-import { clientItems, ctxFilter, ctxOptions, fmtMin, fromDayjs, pobMin, portItems, ticketId, vesselItems } from '../board/model.jsx';
+import { clientItems, ctxFilter, ctxOptions, fmtLoa, fmtMin, fromDayjs, pobMin, portItems, ticketId, vesselItems } from '../board/model.jsx';
 import { BOARD_DAY0, twins } from '../board/timeline';
 import D from '../data';
 import { STATUS, canMove, canRun, isAdmin, isTerminal } from '../board/status';
@@ -137,7 +137,7 @@ export default function TicketActionsModal({ row: r, rows = [], role, mods, tag 
           what="Vessel"
           value={r.vessel}
           options={vesselItems(rows)}
-          newSub={`LOA ${r.loa || '-'} · DWT ${r.dwt || '-'}`}
+          newSub={`LOA ${r.loa ? fmtLoa(r.loa) : '-'} · DWT ${r.dwt || '-'}`}
           onResolve={(vessel) => (set({ vessel }), onPatch({ vessel, vesselAlert: false }, vessel === r.vessel ? `Vessel "${vessel}" created` : `Vessel updated to "${vessel}"`))}
         />
       )}

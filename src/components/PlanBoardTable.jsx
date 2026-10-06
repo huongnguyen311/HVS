@@ -1,13 +1,13 @@
 import dayjs from 'dayjs';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { App, Dropdown, Table } from 'antd';
-import { CopyOutlined, PlusOutlined, WarningOutlined } from '@ant-design/icons';
+import { CopyOutlined, EyeOutlined, FileTextOutlined, PlusOutlined, ProfileOutlined, UnorderedListOutlined, WarningOutlined } from '@ant-design/icons';
 import D from '../data';
 import { loadBoard, loadConfig, loadMods, loadRole, loadTags, loadUserName, roleDefault, saveBoard, saveConfig, saveTags } from '../board/store';
 import { STATUS, STATUS_KEYS, canMove, canRun, isAdmin, isTerminal } from '../board/status';
 import { rowPasses, sectionPasses } from '../board/filters';
 import { BOARD_DAY0, BOARD_TODAY, SLOTS, conflicts, jobSvc, twins } from '../board/timeline';
-import { PENDING, fmtMin, inWindow, locationOf, placeRow, pobMin, pobTitle, ticketId } from '../board/model.jsx';
+import { PENDING, fmtLoa, fmtMin, inWindow, locationOf, placeRow, pobMin, pobTitle, ticketId } from '../board/model.jsx';
 import { Pob } from '../board/cells';
 import Tip from './Tip';
 import { Down, More } from '../board/icons';
@@ -30,8 +30,8 @@ let measureCtx;
 function noteWidth(rows) {
   if (typeof document === 'undefined') return 0;
   measureCtx = measureCtx || document.createElement('canvas').getContext('2d');
-  measureCtx.font = '11.5px ' + getComputedStyle(document.body).fontFamily;
-  const w = rows.reduce((n, r) => Math.max(n, measureCtx.measureText(r.internal || r.note || '').width + (r.internal ? 14 : 0)), 0);
+  measureCtx.font = '700 13.33px Calibri, Carlito, Arial, sans-serif'; // the spreadsheet skin's cell font
+  const w = rows.reduce((n, r) => Math.max(n, measureCtx.measureText(r.internal || r.note || '').width), 0);
   return Math.ceil(w) + 14; // cell padding + border
 }
 
@@ -50,6 +50,12 @@ function portSpans(rows, merge) {
 }
 
 const Lines = ({ lines }) => lines.map((l, i) => <div key={i}>{l}</div>);
+
+// Header groups, as in the client's spreadsheet: sub = the leaf title under the group.
+const GROUPS = [
+  { key: 'vessel', label: 'VESSEL', keys: ['vessel', 'loa', 'dwt'], sub: { vessel: 'NAME' } },
+  { key: 'pob', label: 'POB', keys: ['pobIn', 'pobOut'], sub: { pobIn: 'In', pobOut: 'Out' } }
+];
 
 // Tap card for PORT / VESSEL / AGENCY cells: a bold name, then label · value lines (empty values are skipped),
 // and an optional hint under a rule.
@@ -147,10 +153,18 @@ export default function PlanBoardTable({ toast, notify }) {
       wrap.classList.add('hov');
     };
     const leave = () => wrap.classList.remove('hov');
+    // .stuck: VESSEL has reached the left edge and is frozen; its header then shows its own group title (CSS).
+    const body = wrap.querySelector('.ant-table-body');
+    const stick = () => {
+      const cell = wrap.querySelector('th.pb-c-vessel');
+      wrap.classList.toggle('stuck', !!cell && body.scrollLeft > 0 && body.scrollLeft >= cell.offsetLeft - 1);
+    };
+    if (body) body.addEventListener('scroll', stick, { passive: true });
     wrap.addEventListener('wheel', wheel, { capture: true, passive: false });
     wrap.addEventListener('mousemove', move);
     wrap.addEventListener('mouseleave', leave);
     return () => {
+      if (body) body.removeEventListener('scroll', stick);
       wrap.removeEventListener('wheel', wheel, { capture: true });
       wrap.removeEventListener('mousemove', move);
       wrap.removeEventListener('mouseleave', leave);
@@ -202,6 +216,7 @@ export default function PlanBoardTable({ toast, notify }) {
     };
   }, []);
 
+  // Half-hour cells are square: as wide as a ticket row is tall (user, 06/10).
   const C = cfg.density === 'compact' ? 36 : 40;
   const run = canRun(role);
   // Personal choice > role default > every column.
@@ -410,7 +425,7 @@ export default function PlanBoardTable({ toast, notify }) {
     <Info
       title={row.vessel}
       rows={[
-        ['LOA', row.loa && row.loa + ' m'],
+        ['LOA', row.loa && fmtLoa(row.loa) + ' m'],
         ['DWT', row.dwt],
         ['Shipping line', tags[row.vessel]],
         ['Fuel figure', withFuel ? fmtFuel(row.fuel) : ''],
@@ -503,15 +518,9 @@ export default function PlanBoardTable({ toast, notify }) {
         </>
       );
     },
+    // The internal note shows in place of the client's, as plain text (no ✎ mark: user, 05/10).
     note: (row) => {
-      const text = row.internal ? (
-        <>
-          <i className="pb-edited">✎</i>
-          <span className="t">{row.internal}</span>
-        </>
-      ) : (
-        <span className="t">{row.note}</span>
-      );
+      const text = <span className="t">{row.internal || row.note}</span>;
       const body = (
         <span className="pb-note" onClick={run && !isTerminal(row.status) ? () => open('notes', row) : undefined}>
           {text}
@@ -546,45 +555,77 @@ export default function PlanBoardTable({ toast, notify }) {
         </Tip>
       );
     },
-    loa: (row) => <span className="t">{row.loa}</span>,
+    loa: (row) => <span className="t">{fmtLoa(row.loa)}</span>,
     dwt: (row) => <span className="t">{row.dwt}</span>,
     // Always shown; a captain gets the ticket read only.
-    actions: (row) => (
-      <Dropdown
-        trigger={['click']}
-        placement="bottomRight"
-        // The ⋮ column can sit half past the window's right edge; shift the menu back on screen.
-        autoAdjustOverflow={{ adjustX: true, adjustY: true, shiftX: true }}
-        menu={{
-          items: run
-            ? [
-                { key: 'actions', label: 'Ticket actions…' },
-                { key: 'notes', label: 'Notes…', disabled: isTerminal(row.status) },
-                { key: 'services', label: 'Services…' },
-                // Closed tickets (done / cancelled / not valid) take no new services or tugboats.
-                ...(isTerminal(row.status) ? [] : [{ key: 'service', label: 'Add service…' }])
-              ]
-            : [
-                { key: 'actions', label: 'View ticket…' },
-                { key: 'services', label: 'Services…' }
-              ],
-          onClick: ({ key }) => open(key, row)
-        }}
-      >
-        <button type="button" className="pb-act" aria-label="Row actions">
-          <More />
-        </button>
-      </Dropdown>
-    )
+    actions: (row) => {
+      const st = STATUS[row.status] || STATUS.PENDING;
+      const closed = isTerminal(row.status);
+      const services = (row.jobs || []).length;
+      const item = (key, icon, label, hint, extra) => ({
+        key,
+        icon,
+        label: (
+          <span className="pb-am-item">
+            <span>{label}</span>
+            {hint != null && <small>{hint}</small>}
+          </span>
+        ),
+        ...extra
+      });
+      // The menu opens on the ticket it acts on: vessel, number and status, so a row near the screen edge isn't mistaken.
+      const head = {
+        key: 'head',
+        type: 'group',
+        label: (
+          <span className="pb-am-head">
+            <b>{row.vessel}</b>
+            <span>
+              #{ticketId(row.no)}
+              <i style={{ color: st.fg, background: st.bg, borderColor: st.bd }}>{row.cancelReq ? 'Cancel requested' : st.label}</i>
+            </span>
+          </span>
+        )
+      };
+      const items = run
+        ? [
+            head,
+            item('actions', <ProfileOutlined />, 'Ticket actions', 'Status, MOD, details'),
+            item('notes', <FileTextOutlined />, 'Notes', closed ? 'Closed ticket' : row.note || row.internal ? 'Has notes' : null, { disabled: closed }),
+            item('services', <UnorderedListOutlined />, 'Services', services ? services + ' assigned' : 'None yet'),
+            // Closed tickets (done / cancelled / not valid) take no new services or tugboats.
+            ...(closed ? [] : [{ type: 'divider' }, item('service', <PlusOutlined />, 'Add service', null, { className: 'pb-am-add' })])
+          ]
+        : [head, item('actions', <EyeOutlined />, 'View ticket', 'Read only'), item('services', <UnorderedListOutlined />, 'Services', services ? services + ' assigned' : 'None yet')];
+      return (
+        <Dropdown
+          trigger={['click']}
+          placement="bottomRight"
+          rootClassName="pb-act-menu"
+          // The ⋮ column can sit half past the window's right edge; shift the menu back on screen.
+          autoAdjustOverflow={{ adjustX: true, adjustY: true, shiftX: true }}
+          menu={{ items, onClick: ({ key }) => open(key, row) }}
+        >
+          <button type="button" className="pb-act" aria-label={'Actions for ' + row.vessel} title="Actions">
+            <More />
+          </button>
+        </Dropdown>
+      );
+    }
   };
 
   const spanAll = defs.length + 1; // info columns + timeline
+  // Section rows are one band across the board with a cyan label as wide as PORT + STATUS (or the first column),
+  // pinned to the left edge. The column titles and hours are not repeated: the header stays on screen (user, 05/10).
+  const labelSpan = Math.max(1, defs.findIndex((c) => c.key !== 'port' && c.key !== 'status'));
+  const labelW = defs.slice(0, labelSpan).reduce((n, c) => n + c.width, 0);
+  const groupOf = (key) => GROUPS.find((g) => g.keys.includes(key));
 
-  const columns = defs
+  const leaves = defs
     .map((c, i) => ({
       key: c.key,
       dataIndex: c.key,
-      title: c.label,
+      title: (groupOf(c.key) && groupOf(c.key).sub[c.key]) || c.label,
       width: c.width,
       className: 'pb-c-' + c.key,
       onHeaderCell: () => ({ title: c.name }),
@@ -603,7 +644,7 @@ export default function PlanBoardTable({ toast, notify }) {
         if (row.isGroup) {
           const openBand = !collapsed.includes(row.key);
           return (
-            <span className="b-sec-label">
+            <span className="b-sec-label" style={{ minWidth: labelW }}>
               {!row.pending && row.total > 0 && (
                 <i className={'chev' + (openBand ? '' : ' shut')}>
                   <Down />
@@ -618,8 +659,19 @@ export default function PlanBoardTable({ toast, notify }) {
         }
         return cell[c.key] ? cell[c.key](row) : <span className="t">{v}</span>;
       }
-    }))
-    .concat([
+    }));
+
+  // VESSEL (name, LOA, DWT) and POB (in, out) sit under a group title, as in the spreadsheet.
+  const grouped = [];
+  leaves.forEach((col) => {
+    const g = groupOf(col.key);
+    const last = grouped[grouped.length - 1];
+    if (!g) return grouped.push(col);
+    if (last && last.key === 'grp:' + g.key) return last.children.push(col);
+    grouped.push({ key: 'grp:' + g.key, title: g.label, className: 'pb-g-' + g.key, children: [col] });
+  });
+
+  const columns = grouped.concat([
       {
         key: 'timeline',
         title: <TimelineHeader C={C} day={day} />,

@@ -8,6 +8,12 @@ export const UNASSIGNED = 'Unassigned location';
 
 // No. as the board prints it: 1847 (numbered per month), no '#'.
 export const ticketId = (no) => String(no);
+
+// LOA as shown: two decimals (199.9 → 199.90), as on Vessel Management; the stored value is kept as typed.
+export function fmtLoa(v) {
+  const n = parseFloat(String(v == null ? '' : v).replace(/,/g, ''));
+  return isNaN(n) ? (v || '') : n.toFixed(2);
+}
 export const locationOf = (port) => D.portLocations[port] || UNASSIGNED;
 export const knownPorts = () => Object.keys(D.portLocations);
 export const clientOf = (nick) => D.boardClients.find((c) => c.nick === nick);
@@ -198,7 +204,7 @@ export const ctxFilter = (input, option) => option.search.includes(norm(input));
 export const vesselItems = (rows) =>
   D.boardVessels.map((v) => {
     const r = rows.find((x) => x.vessel === v && (x.loa || x.dwt));
-    return { value: v, sub: r ? `LOA ${r.loa || '-'} · DWT ${r.dwt || '-'}` : 'No size on file' };
+    return { value: v, sub: r ? `LOA ${r.loa ? fmtLoa(r.loa) : '-'} · DWT ${r.dwt || '-'}` : 'No size on file' };
   });
 export const portItems = () => knownPorts().map((p) => ({ value: p, sub: locationOf(p) }));
 export const clientItems = () => D.boardClients.map((c) => ({ value: c.nick, sub: c.agency }));
